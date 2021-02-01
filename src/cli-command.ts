@@ -2,17 +2,17 @@ import { Parser } from './parser/parser'
 import { STRINGS } from './strings'
 
 // TODO: Change "any" to a (nested) dictionary of OptionValues
-type OptionValue = boolean | string | string[] | any | undefined
-type ValidationResult = boolean | string
+export type OptionValue = boolean | string | string[] | any | undefined
+export type ValidationResult = boolean | string
 
-type OptionValidator = (value: OptionValue, command?: {
+export type OptionValidator = (value: OptionValue, command?: {
   args: { [key: string]: OptionValue },
   opts: { [key: string]: OptionValue },
   extra: any[]
 }) => ValidationResult | Promise<ValidationResult>
 
-type OptionHook = <T = string>(value: OptionValue, command?: {
-  validate?: OptionValidator,
+export type OptionHook = <T = string>(value: OptionValue, command?: {
+  validator?: OptionValidator,
   args: { [key: string]: OptionValue },
   opts: { [key: string]: OptionValue },
   extra: any[]
