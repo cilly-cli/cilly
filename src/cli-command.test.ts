@@ -77,7 +77,7 @@ describe('CliCommand', () => {
         expect(Object.keys(opts)).to.be.empty
       })
       it('should assign a boolean option with "true" if provided', () => {
-        const { args, opts } = command.parse(['', '', '--verbose', '--dry-run'])
+        const { opts } = command.parse(['', '', '--verbose', '--dry-run'])
         expect(opts.verbose).to.be.true
         expect(opts.dryRun).to.be.true
       })
@@ -134,6 +134,16 @@ describe('CliCommand', () => {
 
         expect(parent.calledOnce).to.be.false
         expect(sub.called).to.be.true
+      })
+      it('should set arguments to their default value', async (done) => {
+        const subCommand = new CliCommand('sub', { inheritOpts: true })
+          .withArguments([{ name: 'arg', defaultValue: 'default' }])
+          .withHandler(({ args }) => {
+            expect(args.arg).to.be.equal('default')
+            done()
+          })
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub', '--verbose'])
       })
     })
   })
