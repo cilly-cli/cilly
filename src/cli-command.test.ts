@@ -135,15 +135,14 @@ describe('CliCommand', () => {
         expect(parent.calledOnce).to.be.false
         expect(sub.called).to.be.true
       })
-      it('should set arguments to their default value', async (done) => {
-        const subCommand = new CliCommand('sub', { inheritOpts: true })
-          .withArguments([{ name: 'arg', defaultValue: 'default' }])
+      it('should set arguments to their default value', async () => {
+        const subCommand = new CliCommand('sub123', { inheritOpts: true })
+          .withArguments([{ name: 'arg', required: false, defaultValue: 'default' }])
           .withHandler(({ args }) => {
             expect(args.arg).to.be.equal('default')
-            done()
           })
 
-        await command.withSubCommands([subCommand]).process(['', '', 'sub', '--verbose'])
+        await command.withSubCommands([subCommand]).process(['', '', 'sub123', '--verbose'])
       })
     })
   })

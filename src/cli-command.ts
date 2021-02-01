@@ -127,8 +127,12 @@ export class CliCommand {
       throw new Error(STRINGS.EXPECTED_BUT_GOT(`a value for "${a.name}"`, 'nothing'))
     }
 
+    for (const a of this.arguments) {
+      args.push({ value: a.defaultValue, ...a })
+    }
+
     return {
-      args: this.formatArguments(args),
+      args: this.formatArguments(args, { reduce: false }),
       opts: this.formatOptions(opts),
       extra
     }
@@ -141,7 +145,7 @@ export class CliCommand {
       if (opt.args === undefined) {
         optValues[this.getKey(opt)] = opt.value
       } else {
-        optValues[this.getKey(opt)] = this.formatArguments(opt.args)
+        optValues[this.getKey(opt)] = this.formatArguments(opt.args, { reduce: true })
       }
     }
 
@@ -153,10 +157,10 @@ export class CliCommand {
    * Otherwise, returns an object { argument-name: value }
    * @param args Process arguments or arguments assigned to an option
    */
-  private formatArguments(args: CliCommandArgument[]): { [key: string]: OptionValue } | OptionValue {
+  private formatArguments(args: CliCommandArgument[], opts: { reduce: boolean }): { [key: string]: OptionValue } | OptionValue {
     const argValues: { [key: string]: OptionValue } = {}
 
-    if (args.length === 1) {
+    if (args.length === 1 && opts.reduce) {
       return args[0].value
     }
 
