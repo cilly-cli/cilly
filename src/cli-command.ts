@@ -22,15 +22,17 @@ export interface CliCommandArgument {
   name: string
   required?: boolean
   variadic?: boolean
-  value?: OptionValue
+  value?: OptionValue,
+  defaultValue?: OptionValue
 }
+
 export interface CliCommandOption {
   name: [string, string]
   args?: CliCommandArgument[]
   desc: string
   defaultValue?: OptionValue
   value?: OptionValue
-  validate?: OptionValidator
+  validator?: OptionValidator
   hook?: OptionHook
 }
 
@@ -44,9 +46,9 @@ export class CliCommand {
   public extra: any[] = []
   public subCommands: { [name: string]: CliCommand } = {}
 
-  constructor(name: string, opts?: { inheritOpts?: boolean }) {
+  constructor(name: string, opts: { inheritOpts?: boolean } = { inheritOpts: true }) {
     this.name = name
-    this.inheritOpts = opts?.inheritOpts
+    this.inheritOpts = opts.inheritOpts
   }
 
   public withDescription(description: string): CliCommand {
@@ -262,7 +264,7 @@ export class CliCommand {
         }
       } else {
         if (!q[0]) {
-          arg.value = true
+          arg.value = arg.defaultValue
         } else if (arg.variadic) {
           arg.value = this.consumeVariadicArguments(q)
         } else {

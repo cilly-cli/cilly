@@ -1,8 +1,11 @@
 import { describe } from 'mocha'
-import { expect } from 'chai'
+import chai, { expect } from 'chai'
 import { stub } from 'sinon'
 
 import { CliCommand } from './cli-command'
+import chaiAsPromised from 'chai-as-promised'
+
+chai.use(chaiAsPromised)
 
 describe('CliCommand', () => {
   describe('withOptions', () => {
@@ -84,7 +87,7 @@ describe('CliCommand', () => {
         expect(opts.dryRun).to.be.undefined
       })
       it('should throw when a required option value is not passed', () => {
-        expect(command.parse(['', '', '--required', '--verbose'])).to.throw(Error)
+        expect(() => command.parse(['', '', '--required', '--verbose'])).to.throw(Error)
       })
     })
     describe('process', () => {
@@ -100,23 +103,13 @@ describe('CliCommand', () => {
           ])
           .withHandler(testHandler)
       })
-      it('should be able to parse options from parent command if inheritOpts = true', () => {
-        expect(() => {
-          void command
-            .withSubCommands([
-              new CliCommand('sub', { inheritOpts: true }).withHandler(subHandler)
-            ])
-            .process(['', '', 'sub', '--verbose'])
-        }).to.not.throw(Error)
+      it('should be able to parse options from parent command if inheritOpts = true', async () => {
+        command.withSubCommands([new CliCommand('sub', { inheritOpts: true }).withHandler(subHandler)])
+        await expect(command.process(['', '', 'sub', '--verbose'])).to.not.be.rejected
       })
-      it('should not be able to parse options from parent command if inheritOpts is not set', () => {
-        expect(() => {
-          void command
-            .withSubCommands([
-              new CliCommand('sub').withHandler(subHandler)
-            ])
-            .process(['', '', 'sub', '--verbose'])
-        }).to.throw(Error)
+      it('should not be able to parse options from parent command if inheritOpts = false', async () => {
+        command.withSubCommands([new CliCommand('sub', { inheritOpts: false }).withHandler(subHandler)])
+        await expect(command.process(['', '', 'sub', '--verbose'])).to.be.rejected
       })
       it('should run the base handler if no matching subcommand is passed', () => {
         const subCommand = new CliCommand('sub', { inheritOpts: true }).withHandler(subHandler)
