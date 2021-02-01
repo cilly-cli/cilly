@@ -1,0 +1,50 @@
+{
+  "env": {
+    "es2021": true,
+    "node": true
+  },
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "ignorePatterns": [],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 11,
+    "sourceType": "module",
+    "project": "tsconfig.json"
+  },
+  "plugins": ["@typescript-eslint", "unused-imports"],
+  "rules": {
+    "indent": ["error", 2],
+    "linebreak-style": "off",
+    "quotes": ["error", "single", { "avoidEscape": true }],
+    "semi": ["error", "never"],
+    "require-await": "off",
+    "@typescript-eslint/require-await": "error",
+    "no-useless-escape": "off",
+    "no-return-await": "off",
+    "no-floating-promises": "off",
+    "no-trailing-spaces": "error",
+    "no-control-regex": "off",
+    "no-constant-condition": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/return-await": "error",
+    "@typescript-eslint/no-inferrable-types": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/explicit-function-return-type": "error",
+    "@typescript-eslint/switch-exhaustiveness-check": "error",
+    "@typescript-eslint/promise-function-async": "error",
+    "@typescript-eslint/prefer-optional-chain": "error",
+    "@typescript-eslint/prefer-nullish-coalescing": "error",
+    "@typescript-eslint/prefer-for-of": "error",
+    "@typescript-eslint/no-extra-parens": "error",
+    "@typescript-eslint/no-unnecessary-type-assertion": "error",
+    "@typescript-eslint/no-unnecessary-condition": ["warn", {
+      "allowConstantLoopConditions": true
+    }],
+    "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
+    "@typescript-eslint/no-require-imports": "off",
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-base-to-string": "error",
+    "unused-imports/no-unused-imports-ts": 2
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "version": "0.1.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch app.ts",
+      "smartStep": true,
+      "program": "${workspaceFolder}/src/app.ts",
+      "preLaunchTask": "tsc: build - tsconfig.json",
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "autoAttachChildProcesses": true,
+      "args": ["hello", "--required=something", "--verbose", "--optional", "--many-optional", "asd", "-t", "firstValue"]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha Tests",
+      "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+      "args": [
+          "-r",
+          "ts-node/register",
+          "--timeout",
+          "999999",
+          "--colors",
+          "${workspaceFolder}/src/**/*.test.ts",
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "protocol": "inspector"
+  }
+  ]
+}
