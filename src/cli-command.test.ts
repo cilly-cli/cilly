@@ -2,7 +2,7 @@ import { describe } from 'mocha'
 import chai, { expect } from 'chai'
 import { stub } from 'sinon'
 
-import { CliCommand } from './cli-command'
+import { CliCommand, OptionValue } from './cli-command'
 import chaiAsPromised from 'chai-as-promised'
 
 chai.use(chaiAsPromised)
@@ -111,31 +111,31 @@ describe('CliCommand', () => {
         command.withSubCommands([new CliCommand('sub', { inheritOpts: false }).withHandler(subHandler)])
         await expect(command.process(['', '', 'sub', '--verbose'])).to.be.rejected
       })
-      it('should run the base handler if no matching subcommand is passed', () => {
+      it('should run the base handler if no matching subcommand is passed', async () => {
         const subCommand = new CliCommand('sub', { inheritOpts: true }).withHandler(subHandler)
         const parent = stub(command, 'handler')
         const sub = stub(subCommand, 'handler')
 
-        void command
+        await command
           .withSubCommands([subCommand])
           .process(['', '', '--verbose'])
 
         expect(parent.calledOnce).to.be.true
         expect(sub.called).to.be.false
       })
-      it('should run the subcommand handler if a matching subcommand is passed', () => {
+      it('should run the subcommand handler if a matching subcommand is passed', async () => {
         const subCommand = new CliCommand('sub', { inheritOpts: true }).withHandler(subHandler)
         const parent = stub(command, 'handler')
         const sub = stub(subCommand, 'handler')
 
-        void command
+        await command
           .withSubCommands([subCommand])
           .process(['', '', 'sub', '--verbose'])
 
         expect(parent.calledOnce).to.be.false
         expect(sub.called).to.be.true
       })
-      it('should set arguments to their default value', async () => {
+      it('should set optional arguments with default values to their default value if not provided', async () => {
         const subCommand = new CliCommand('sub123', { inheritOpts: true })
           .withArguments([{ name: 'arg', required: false, defaultValue: 'default' }])
           .withHandler(({ args }) => {
@@ -143,6 +143,81 @@ describe('CliCommand', () => {
           })
 
         await command.withSubCommands([subCommand]).process(['', '', 'sub123', '--verbose'])
+      })
+      it('should set optional arguments without default values to undefined if not provided', async () => {
+        const subCommand = new CliCommand('sub123', { inheritOpts: true })
+          .withArguments([{ name: 'arg', required: false }])
+          .withHandler(({ args }) => {
+            expect(args.arg).to.be.undefined
+          })
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub123', '--verbose'])
+      })
+      it('should set single-argument option values to the argument value', async () => {
+        const subCommand = new CliCommand('sub123', { inheritOpts: true })
+          .withOptions([{ name: ['-o', '--option'], desc: '', args: [{ name: 'arg' }] }])
+          .withHandler(({ opts }) => {
+            expect(opts.option).to.equal('hello')
+          })
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub123', '--option=hello'])
+      })
+      it('should set multi-argument option values to the key-value objects', async () => {
+        const subCommand = new CliCommand('sub123', { inheritOpts: true })
+          .withOptions([{ name: ['-o', '--option'], desc: '', args: [{ name: 'first' }, { name: 'second' }] }])
+          .withHandler(({ opts }) => {
+            expect(opts.option.first).to.equal('firstValue')
+            expect(opts.option.second).to.equal('secondValue')
+          })
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub123', '--option', 'firstValue', 'secondValue'])
+      })
+      it('should set multi-optional-argument option values to the key-value objects with undefined values if not provided', async () => {
+        const subCommand = new CliCommand('sub123', { inheritOpts: true })
+          .withOptions([{ name: ['-o', '--option'], desc: '', args: [{ name: 'first' }, { name: 'second' }] }])
+          .withHandler(({ opts }) => {
+            expect(opts.option).to.haveOwnProperty('first')
+            expect(opts.option).to.haveOwnProperty('second')
+          })
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub123', '--option'])
+      })
+      it('should run option validators if provided', async () => {
+        const validator = (value: OptionValue, command: { args, opts }): boolean | string => {
+          return true
+        }
+        const subCommand = new CliCommand('sub', { inheritOpts: true })
+          .withOptions([{ name: ['-o', '--option'], desc: '', validator: validator }])
+          .withHandler(testHandler)
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub', '--option'])
+        expect(false)
+      })
+      it('should pass option value to validator', async () => {
+        const validator = (value: OptionValue, command: { args, opts }): boolean | string => {
+          expect(value).to.equal('optionValue')
+          return true
+        }
+
+        const subCommand = new CliCommand('sub', { inheritOpts: true })
+          .withOptions([{ name: ['-o', '--option'], args: [{ name: 'some-value' }], desc: '', validator: validator }])
+          .withHandler(testHandler)
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub', '--option=optionValue'])
+      })
+      it('should pass args and options to validator', async () => {
+        const validator = (value: OptionValue, command: { args, opts }): boolean | string => {
+          expect(command.args).to.haveOwnProperty('arg')
+          expect(command.opts).to.haveOwnProperty('option')
+          expect(command.opts).to.haveOwnProperty('second')
+          return true
+        }
+        const subCommand = new CliCommand('sub', { inheritOpts: true })
+          .withArguments([{ name: 'arg' }])
+          .withOptions([{ name: ['-o', '--option'], desc: '', validator: validator }, { name: ['-s', '--second'], desc: '' }])
+          .withHandler(testHandler)
+
+        await command.withSubCommands([subCommand]).process(['', '', 'sub', '--option', '--second'])
       })
     })
   })

@@ -2,28 +2,29 @@ import { Parser } from './parser/parser'
 import { STRINGS } from './strings'
 
 // TODO: Change "any" to a (nested) dictionary of OptionValues
-export type OptionValue = boolean | string | string[] | any | undefined
+export type OptionValue = boolean | string | string[] | undefined | { [arg: string]: OptionValue }
 export type ValidationResult = boolean | string
-
 export type OptionValidator = (value: OptionValue, command?: {
   args: { [key: string]: OptionValue },
   opts: { [key: string]: OptionValue },
-  extra: any[]
+  extra?: any[]
 }) => ValidationResult | Promise<ValidationResult>
 
 export type OptionHook = <T = string>(value: OptionValue, command?: {
   validator?: OptionValidator,
   args: { [key: string]: OptionValue },
   opts: { [key: string]: OptionValue },
-  extra: any[]
+  extra?: any[]
 }) => T | Promise<T>
 
 export interface CliCommandArgument {
   name: string
   required?: boolean
   variadic?: boolean
-  value?: OptionValue,
+  value?: OptionValue
   defaultValue?: OptionValue
+  validator?: OptionValidator
+  hook?: OptionHook
 }
 
 export interface CliCommandOption {
@@ -101,7 +102,27 @@ export class CliCommand {
     return this.subCommands[name]
   }
 
-  public parse(q: string[]): { args: any, opts: any, extra: any[] } {
+  public parse(q: string[], definitions?: { args: CliCommandArgument[], opts: CliCommandOption[], extra?: any[] }): { args: any, opts: any, extra?: any[] } {
+
+    if (!definitions) {
+      definitions = this.consume(q)
+    }
+
+    const args = this.buildArguments(definitions.args, { reduce: false }) as { [key: string]: OptionValue }
+    const opts = this.buildOptions(definitions.opts)
+
+    return {
+      args,
+      opts,
+      extra: definitions.extra
+    }
+  }
+
+  private consume(q: string[]): {
+    args: CliCommandArgument[],
+    opts: CliCommandOption[],
+    extra: (string | undefined)[]
+  } {
     const args: CliCommandArgument[] = []
     const opts: CliCommandOption[] = []
     const extra: (string | undefined)[] = []
@@ -116,7 +137,6 @@ export class CliCommand {
 
       } else if (this.arguments.length) {
         const arg = this.consumeArgument(this.arguments.shift(), q)
-        if (!arg) continue
         args.push(arg)
       } else {
         extra.push(q.shift())
@@ -131,21 +151,67 @@ export class CliCommand {
       args.push({ value: a.defaultValue, ...a })
     }
 
-    return {
-      args: this.formatArguments(args, { reduce: false }),
-      opts: this.formatOptions(opts),
-      extra
+    return { args, opts, extra }
+  }
+
+  private async runHooks(
+    consumed: { args: CliCommandArgument[], opts: CliCommandOption[] },
+    command: { args: { [key: string]: OptionValue }, opts: { [key: string]: OptionValue }, extra?: any[] }
+  ): Promise<void> {
+    for (const arg of consumed.args) {
+      if (arg.hook) {
+        await arg.hook(arg.value, {
+          validator: arg.validator,
+          args: command.args,
+          opts: command.opts,
+          extra: command.extra
+        })
+      }
+    }
+
+    for (const opt of consumed.opts) {
+      if (opt.hook) {
+        await opt.hook(opt.value, {
+          validator: opt.validator,
+          args: command.args,
+          opts: command.opts,
+          extra: command.extra
+        })
+      }
     }
   }
 
-  private formatOptions(opts: CliCommandOption[]): { [key: string]: OptionValue } {
+  private async validate(
+    consumed: { args: CliCommandArgument[], opts: CliCommandOption[] },
+    command: { args: { [key: string]: OptionValue }, opts: { [key: string]: OptionValue }, extra?: any[] }
+  ): Promise<void> {
+    for (const arg of consumed.args) {
+      if (arg.validator) {
+        const validationResult = await arg.validator(arg.value, command)
+        if (validationResult !== true) {
+          throw new Error(STRINGS.ARGUMENT_VALIDATION_ERROR(arg.name, arg.value, validationResult))
+        }
+      }
+    }
+
+    for (const opt of consumed.opts) {
+      if (opt.validator) {
+        const validationResult = await opt.validator(command.opts[this.getKey(opt)], command)
+        if (validationResult !== true) {
+          throw new Error(STRINGS.OPTION_VALIDATION_ERROR(opt.name[1], opt.value, validationResult))
+        }
+      }
+    }
+  }
+
+  private buildOptions(opts: CliCommandOption[]): { [key: string]: OptionValue } {
     const optValues: { [key: string]: OptionValue } = {}
 
     for (const opt of opts) {
       if (opt.args === undefined) {
         optValues[this.getKey(opt)] = opt.value
       } else {
-        optValues[this.getKey(opt)] = this.formatArguments(opt.args, { reduce: true })
+        optValues[this.getKey(opt)] = this.buildArguments(opt.args, { reduce: true })
       }
     }
 
@@ -153,11 +219,12 @@ export class CliCommand {
   }
 
   /**
-   * If there is only one argument, returns the value of the argument.
-   * Otherwise, returns an object { argument-name: value }
+   * Returns an object { argument-name: value }.
+   * If opts.reduce is true and there is only one argument, the argument value is returned.
    * @param args Process arguments or arguments assigned to an option
+   * @param opts: Options for reducing argument values when only one argument is present.
    */
-  private formatArguments(args: CliCommandArgument[], opts: { reduce: boolean }): { [key: string]: OptionValue } | OptionValue {
+  private buildArguments(args: CliCommandArgument[], opts: { reduce: boolean }): { [key: string]: OptionValue } | OptionValue {
     const argValues: { [key: string]: OptionValue } = {}
 
     if (args.length === 1 && opts.reduce) {
@@ -179,7 +246,13 @@ export class CliCommand {
       throw new Error(STRINGS.NO_COMMAND_HANDLER(this.name))
     }
 
-    return command.handler(command.parse(q))
+    const definitions = command.consume(q)
+    const { args, opts, extra } = command.parse(processArgs, definitions)
+
+    await this.runHooks(definitions, { args, opts, extra })
+    await this.validate(definitions, { args, opts, extra })
+
+    return command.handler({ args, opts, extra })
   }
 
   /**
@@ -226,7 +299,7 @@ export class CliCommand {
     }
 
     const opt = this.options.find(o => o.name.some(n => n === next))
-    if (opt == undefined) {
+    if (opt === undefined) {
       throw new Error(STRINGS.UNKNOWN_OPTION_NAME(next))
     }
 
@@ -235,17 +308,17 @@ export class CliCommand {
     if (!opt.args) {
       opt.value = opt.defaultValue ?? true
     } else {
-      for (const arg of opt.args) {
-        opt.value = { ...opt.value, ...this.consumeArgument(arg, q) }
+      for (let i = 0; i < opt.args.length; i++) {
+        opt.args[i] = this.consumeArgument(opt.args[i], q)
       }
     }
 
     return opt
   }
 
-  private consumeArgument(arg: CliCommandArgument | undefined, q: string[]): CliCommandArgument | undefined {
+  private consumeArgument(arg: CliCommandArgument | undefined, q: string[]): CliCommandArgument {
     if (!arg) {
-      return undefined
+      throw new Error(STRINGS.EXPECTED_BUT_GOT('an argument', 'nothing'))
     }
 
     if (q[0] && Parser.isOptionName(q[0])) {
