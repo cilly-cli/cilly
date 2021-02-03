@@ -219,6 +219,9 @@ describe('CliCommand', () => {
 
         await command.withSubCommands([subCommand]).process(['', '', 'sub', '--option', '--second'])
       })
+      it('should pass args and options to hook', () => {
+        expect(false)  // TODO: Add tests for hooks
+      })
     })
   })
 })

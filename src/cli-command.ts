@@ -160,7 +160,7 @@ export class CliCommand {
   ): Promise<void> {
     for (const arg of consumed.args) {
       if (arg.hook) {
-        await arg.hook(arg.value, {
+        arg.value = await arg.hook(arg.value, {
           validator: arg.validator,
           args: command.args,
           opts: command.opts,
@@ -171,7 +171,7 @@ export class CliCommand {
 
     for (const opt of consumed.opts) {
       if (opt.hook) {
-        await opt.hook(opt.value, {
+        opt.value = await opt.hook(opt.value, {
           validator: opt.validator,
           args: command.args,
           opts: command.opts,
