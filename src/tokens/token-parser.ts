@@ -47,7 +47,7 @@ const getLongOptionName = (signature: string): string => {
   return match[0].replace('--', '')
 }
 
-export const Parser = {
+export const TokenParser = {
   isValidName,
   isShortOptionName,
   isLongOptionName,

@@ -1,55 +1,65 @@
-import { Parser } from './parser/parser'
+import { CillyException } from './exceptions/cilly-exception'
 import { STRINGS } from './strings'
+import { TokenParser } from './tokens/token-parser'
 
-// TODO: Change "any" to a (nested) dictionary of OptionValues
-export type OptionValue = boolean | string | string[] | undefined | { [arg: string]: OptionValue }
-export type ValidationResult = boolean | string
-export type OptionValidator = (value: OptionValue, command?: {
-  args: { [key: string]: OptionValue },
-  opts: { [key: string]: OptionValue },
-  extra?: any[]
-}) => ValidationResult | Promise<ValidationResult>
+export type ArgumentValue = any
+export type OptionValue = ArgumentValue | { [name: string]: ArgumentValue }
+export type ParsedArguments = { [name: string]: ArgumentValue }
+export type ParsedOptions = { [name: string]: OptionValue }
+export type Validator = (value: ArgumentValue, input: ParsedInput) => string | boolean
+export type Hook = (value: ArgumentValue, validator: Validator, input: ParsedInput) => any
 
-export type OptionHook = <T = string>(value: OptionValue, command?: {
-  validator?: OptionValidator,
-  args: { [key: string]: OptionValue },
-  opts: { [key: string]: OptionValue },
-  extra?: any[]
-}) => T | Promise<T>
-
-export interface CliCommandArgument {
-  name: string
-  required?: boolean
-  variadic?: boolean
-  value?: OptionValue
-  defaultValue?: OptionValue
-  validator?: OptionValidator
-  hook?: OptionHook
+export type Argument = {
+  name: string,
+  required?: boolean,
+  variadic?: boolean,
+  description?: string,
+  defaultValue?: ArgumentValue,
+  hook?: Hook,
+  validator?: Validator
 }
 
-export interface CliCommandOption {
-  name: [string, string]
-  args?: CliCommandArgument[]
-  desc: string
-  defaultValue?: OptionValue
-  value?: OptionValue
-  validator?: OptionValidator
-  hook?: OptionHook
+export type Option = {
+  name: [string, string],
+  required?: boolean,
+  negated?: boolean,
+  args?: Argument[],
+  defaultValue?: OptionValue,
+  description?: string,
+  hook?: Hook,
+  validator?: Validator
+}
+
+export type ParsedInput = {
+  args: ParsedArguments,
+  opts: ParsedOptions,
+  extra?: string[]
 }
 
 export class CliCommand {
-  public name: string
-  public description: string
-  public inheritOpts?: boolean
-  public handler?: (process: { args?: any, opts?: any, extra?: any[] }) => (void | Promise<void>)
-  public options: CliCommandOption[] = []
-  public arguments: CliCommandArgument[] = []
-  public extra: any[] = []
-  public subCommands: { [name: string]: CliCommand } = {}
 
-  constructor(name: string, opts: { inheritOpts?: boolean } = { inheritOpts: true }) {
+  name: string
+  description: string
+  inheritOpts: boolean
+
+  args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
+  opts: { [name: string]: Option } = {}
+  subCommands: { [name: string]: CliCommand } = {}
+  shortNameMap: { [shortName: string]: string } = {}
+
+  parsed: {
+    args: ParsedArguments
+    opts: ParsedOptions
+    extra: string[]
+  } = { args: {}, opts: {}, extra: [] }
+  extra: string[] = []
+
+  constructor(name: string, opts?: { inheritOpts?: boolean }) {
+    if (!TokenParser.isValidName(name)) {
+      throw new CillyException(STRINGS.INVALID_COMMAND_NAME(name))
+    }
     this.name = name
-    this.inheritOpts = opts.inheritOpts
+    this.inheritOpts = opts?.inheritOpts ?? true
   }
 
   public withDescription(description: string): CliCommand {
@@ -57,40 +67,47 @@ export class CliCommand {
     return this
   }
 
-  public withArguments(args: CliCommandArgument[]): CliCommand {
+  public withArguments(args: Argument[]): CliCommand {
     if (Object.keys(this.subCommands).length && args.length) {
       throw new Error(STRINGS.NO_ARGS_AND_SUBCOMMANDS(this.name))
     }
 
     for (const arg of args) {
       this.checkArgument(arg)
+      const name = this.getName(arg)
+      if (this.args.some(a => a.name == arg.name)) {
+        throw new CillyException(STRINGS.DUPLICATE_ARG_NAME(name))
+      }
+      this.args.push(arg)
     }
 
-    this.arguments = args
     return this
   }
 
-  public withOptions(options: CliCommandOption[]): CliCommand {
+  public withOptions(options: Option[]): CliCommand {
     for (const option of options) {
       this.checkOption(option)
+      const name = this.getName(option)
+      const short = this.getShortName(option)
+      if (name in this.opts) {
+        throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(name))
+      }
+      if (short in this.shortNameMap) {
+        throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(short))
+      }
+
+      this.opts[name] = option
+      this.shortNameMap[short] = name
     }
 
-    this.options = options
-    return this
-  }
-
-  public withHandler(handler: (process: { args?: any, opts?: any, extra?: any[] }) => (void | Promise<void>)): CliCommand {
-    this.handler = handler
     return this
   }
 
   public withSubCommands(commands: CliCommand[]): CliCommand {
-    if (this.arguments.length && commands.length) {
-      throw new Error(STRINGS.NO_ARGS_AND_SUBCOMMANDS(this.name))
-    }
     for (const command of commands) {
+      this.checkSubCommand(command)
       if (command.inheritOpts) {
-        command.options = [...command.options, ...this.options]
+        command.opts = { ...command.opts, ...this.opts }
       }
       this.subCommands[command.name] = command
     }
@@ -98,265 +115,122 @@ export class CliCommand {
     return this
   }
 
-  public getSubCommand(name: string): CliCommand | undefined {
-    return this.subCommands[name]
-  }
+  /**
+   * Parses the process arguments and generates args, opts, and extra objects.
+   * Does not invoke command handlers and does not invoke hooks or validators.
+   * @param processArgs The process arguments (typically process.argv)
+   * @param opts parse() automatically strips the first two arguments from its input.
+   * To prevent this, set opts.stripExecScript to false.
+   */
+  public parse(processArgs: string[], opts: { stripExecScript: boolean } = { stripExecScript: true }): ParsedInput {
+    // The "queue" of arguments, cloned so we don't modify the original
+    const q = [...opts.stripExecScript ? processArgs.slice(2) : processArgs]
 
-  public parse(q: string[], definitions?: { args: CliCommandArgument[], opts: CliCommandOption[], extra?: any[] }): { args: any, opts: any, extra?: any[] } {
-
-    if (!definitions) {
-      definitions = this.consume(q)
-    }
-
-    const args = this.buildArguments(definitions.args, { reduce: false }) as { [key: string]: OptionValue }
-    const opts = this.buildOptions(definitions.opts)
-
-    return {
-      args,
-      opts,
-      extra: definitions.extra
-    }
-  }
-
-  private consume(q: string[]): {
-    args: CliCommandArgument[],
-    opts: CliCommandOption[],
-    extra: (string | undefined)[]
-  } {
-    const args: CliCommandArgument[] = []
-    const opts: CliCommandOption[] = []
-    const extra: (string | undefined)[] = []
-
+    // Parse the input
     while (q.length) {
-      const next = q[0]
+      let next = q[0]
 
-      if (Parser.isOptionName(next)) {
-        const option = this.consumeOption(q)
-        if (!option) continue
-        opts.push(option)
+      if (next === this.name) {
+        q.shift()
+        next = q[0]
+      }
 
-      } else if (this.arguments.length) {
-        const arg = this.consumeArgument(this.arguments.shift(), q)
-        args.push(arg)
+      if (next in this.subCommands) {
+        return this.subCommands[next].parse(q)
+      }
+
+      if (TokenParser.isOptionName(next)) {
+        const parsed = this.consumeOption(q)
+        if (!parsed) continue
+        const [name, value] = parsed
+        this.parsed.opts[name] = value
+      } else if (!this.isEmpty(this.args)) {
+        const parsed = this.consumeArgument(this.args.shift(), q)
+        if (!parsed) continue
+        const [name, value] = parsed
+        this.parsed.args[name] = value
       } else {
-        extra.push(q.shift())
+        this.parsed.extra.push(next)
+        q.shift()
       }
     }
 
-    for (const a of this.arguments.filter(a => a.required)) {
-      throw new Error(STRINGS.EXPECTED_BUT_GOT(`a value for "${a.name}"`, 'nothing'))
-    }
+    this.handleUnassignedArguments()
 
-    for (const a of this.arguments) {
-      args.push({ value: a.defaultValue, ...a })
-    }
-
-    return { args, opts, extra }
+    return this.parsed
   }
 
-  private async runHooks(
-    consumed: { args: CliCommandArgument[], opts: CliCommandOption[] },
-    command: { args: { [key: string]: OptionValue }, opts: { [key: string]: OptionValue }, extra?: any[] }
-  ): Promise<void> {
-    for (const arg of consumed.args) {
-      if (arg.hook) {
-        arg.value = await arg.hook(arg.value, {
-          validator: arg.validator,
-          args: command.args,
-          opts: command.opts,
-          extra: command.extra
-        })
-      }
-    }
-
-    for (const opt of consumed.opts) {
-      if (opt.hook) {
-        opt.value = await opt.hook(opt.value, {
-          validator: opt.validator,
-          args: command.args,
-          opts: command.opts,
-          extra: command.extra
-        })
-      }
-    }
-  }
-
-  private async validate(
-    consumed: { args: CliCommandArgument[], opts: CliCommandOption[] },
-    command: { args: { [key: string]: OptionValue }, opts: { [key: string]: OptionValue }, extra?: any[] }
-  ): Promise<void> {
-    for (const arg of consumed.args) {
-      if (arg.validator) {
-        const validationResult = await arg.validator(arg.value, command)
-        if (validationResult !== true) {
-          throw new Error(STRINGS.ARGUMENT_VALIDATION_ERROR(arg.name, arg.value, validationResult))
-        }
-      }
-    }
-
-    for (const opt of consumed.opts) {
-      if (opt.validator) {
-        const validationResult = await opt.validator(command.opts[this.getKey(opt)], command)
-        if (validationResult !== true) {
-          throw new Error(STRINGS.OPTION_VALIDATION_ERROR(opt.name[1], opt.value, validationResult))
-        }
-      }
-    }
-  }
-
-  private buildOptions(opts: CliCommandOption[]): { [key: string]: OptionValue } {
-    const optValues: { [key: string]: OptionValue } = {}
-
-    for (const opt of opts) {
-      if (opt.args === undefined) {
-        optValues[this.getKey(opt)] = opt.value
-      } else {
-        optValues[this.getKey(opt)] = this.buildArguments(opt.args, { reduce: true })
-      }
-    }
-
-    return optValues
-  }
-
-  /**
-   * Returns an object { argument-name: value }.
-   * If opts.reduce is true and there is only one argument, the argument value is returned.
-   * @param args Process arguments or arguments assigned to an option
-   * @param opts: Options for reducing argument values when only one argument is present.
-   */
-  private buildArguments(args: CliCommandArgument[], opts: { reduce: boolean }): { [key: string]: OptionValue } | OptionValue {
-    const argValues: { [key: string]: OptionValue } = {}
-
-    if (args.length === 1 && opts.reduce) {
-      return args[0].value
-    }
-
-    for (const arg of args) {
-      argValues[this.getKey(arg)] = arg.value
-    }
-
-    return argValues
-  }
-
-  public async process(processArgs: string[]): Promise<void> {
-    const q = this.splitOptionAssignments(processArgs.slice(2))
-    const command = this.parseCommandHandler(q)
-
-    if (!command.handler) {
-      throw new Error(STRINGS.NO_COMMAND_HANDLER(this.name))
-    }
-
-    const definitions = command.consume(q)
-    const { args, opts, extra } = command.parse(processArgs, definitions)
-
-    await this.runHooks(definitions, { args, opts, extra })
-    await this.validate(definitions, { args, opts, extra })
-
-    return command.handler({ args, opts, extra })
-  }
-
-  /**
-   * Get the appropriate command handler for handling this input.
-   * For example, "mycli build project --name=myProject" would return
-   * the command handler for "project".
-   * @param processArgs The arguments (sans the first 2) passed to the program.
-   */
-  private parseCommandHandler(processArgs: string[]): CliCommand {
-    let commandHandler: CliCommand | undefined = undefined
-    let commandName: string | undefined = undefined
-
-    if (!(processArgs[0] in this.subCommands)) {
-      return this
-    }
-
-    do {
-      commandName = processArgs.shift()
-      if (!commandName) break
-
-      commandHandler = (commandHandler ?? this).getSubCommand(commandName) ?? this
-    } while (commandName in commandHandler.subCommands)
-
-    return commandHandler ?? this
-  }
-
-  private getKey(o: CliCommandOption | CliCommandArgument): string {
-    const tokens = (typeof o.name === 'string' ? o.name : o.name[1])
-      .replace('--', '')
-      .split('-')
-
-    if (typeof o.name === 'string') {
-      return Parser.toCamelCase(tokens)
-    } else {
-      return Parser.toCamelCase(tokens)
-    }
-  }
-
-  private consumeOption(q: string[]): CliCommandOption | undefined {
+  private consumeOption(q: string[]): [string, OptionValue] | undefined {
     const next = q.shift()
 
     if (!next) {
       return undefined
     }
 
-    const opt = this.options.find(o => o.name.some(n => n === next))
+    const name = this.getName(next)
+    const opt = this.opts[name]
     if (opt === undefined) {
-      throw new Error(STRINGS.UNKNOWN_OPTION_NAME(next))
+      throw new CillyException(STRINGS.UNKNOWN_OPTION_NAME(next))
     }
 
-    this.options = this.options.filter(o => o !== opt)
+    if (this.parsed.opts[name]) {
+      throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(name))
+    }
+
+    let optValue: OptionValue
 
     if (!opt.args) {
-      opt.value = opt.defaultValue ?? true
+      optValue = opt.defaultValue ?? true
     } else {
-      for (let i = 0; i < opt.args.length; i++) {
-        opt.args[i] = this.consumeArgument(opt.args[i], q)
+      optValue = {}
+      for (const arg of opt.args) {
+        const parsed = this.consumeArgument(arg, q)
+        if (!parsed) {
+          throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`An argument for ${name}`, 'nothing'))
+        }
+        const [argName, argValue] = parsed
+        optValue[argName] = argValue
       }
     }
 
-    return opt
-  }
-
-  private consumeArgument(arg: CliCommandArgument | undefined, q: string[]): CliCommandArgument {
-    if (!arg) {
-      throw new Error(STRINGS.EXPECTED_BUT_GOT('an argument', 'nothing'))
+    if (optValue instanceof Object && Object.keys(optValue).length == 1) {
+      optValue = Object.values(optValue)[0]
     }
 
-    if (q[0] && Parser.isOptionName(q[0])) {
-      if (!arg.required) {
-        arg.value = true
-      } else if (arg.variadic) {
-        arg.value = []
+    return [name, optValue]
+  }
+
+  private consumeArgument(arg: Argument | undefined, q: string[]): [string, ArgumentValue] {
+    if (!arg) {
+      // Shouldn't ever happen, just to make TypeScript happy with the .shift() input
+      throw new CillyException(STRINGS.EXPECTED_BUT_GOT('an argument', 'nothing'))
+    }
+
+    let argValue: ArgumentValue = undefined
+    const next = q[0]
+
+    if (next) {
+      // We parse options first, so this must be an (potentially unknown) argument
+      if (arg.variadic) {
+        argValue = this.consumeVariadicArguments(q)
       } else {
-        throw new Error(STRINGS.EXPECTED_BUT_GOT(`a value for "${arg.name}"`, `an option (${q[0]})`))
+        argValue = q.shift()
       }
     } else {
       if (arg.required) {
-        if (!q[0]) {
-          throw new Error(STRINGS.EXPECTED_BUT_GOT(`a value for "${arg.name}"`, 'nothing'))
-        }
-        if (arg.variadic) {
-          arg.value = this.consumeVariadicArguments(q)
-        } else {
-          arg.value = q.shift()
-        }
+        throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`a value for "${arg.name}"`, 'nothing'))
       } else {
-        if (!q[0]) {
-          arg.value = arg.defaultValue
-        } else if (arg.variadic) {
-          arg.value = this.consumeVariadicArguments(q)
-        } else {
-          arg.value = q.shift()
-        }
+        argValue = arg.defaultValue ?? undefined
       }
     }
 
-    return arg
+    return [arg.name, argValue]
   }
 
   private consumeVariadicArguments(q: string[]): string[] {
     const args: string[] = []
 
-    while (q[0] && !Parser.isOptionName(q[0])) {
+    while (q[0] && !TokenParser.isOptionName(q[0])) {
       args.push(q[0])
       q.shift()
     }
@@ -364,38 +238,26 @@ export class CliCommand {
     return args
   }
 
-  private splitOptionAssignments(processArgs: string[]): string[] {
-    const splitArgs: string[] = []
-    for (const arg of processArgs) {
-      if (this.isOptionAssignment(arg)) {
-        const [option, value] = arg.split('=')
-        splitArgs.push(option)
-        splitArgs.push(value)
-      } else {
-        splitArgs.push(arg)
-      }
+  private handleUnassignedArguments(): void {
+    for (const a of this.args.filter(a => a.required)) {
+      throw new Error(STRINGS.EXPECTED_BUT_GOT(`a value for "${a.name}"`, 'nothing'))
     }
 
-    return splitArgs
+    for (const a of this.args) {
+      this.parsed.args[a.name] = a.defaultValue
+    }
   }
 
-  private isOptionAssignment(str: string): boolean {
-    if (!/=/.test(str)) return false
-    const [option,] = str.split('=')
-    if (!Parser.isOptionName(option)) return false
-    return true
-  }
-
-  private checkOption(option: CliCommandOption): void {
+  private checkOption(option: Option): void {
     if (option.name.length !== 2) {
-      throw new Error(STRINGS.INVALID_N_OPTION_NAMES(option.name))
+      throw new CillyException(STRINGS.INVALID_N_OPTION_NAMES(option.name))
     }
     const [short, long] = option.name
-    if (!Parser.isShortOptionName(short)) {
-      throw new Error(STRINGS.INVALID_SHORT_OPTION_NAME(short))
+    if (!TokenParser.isShortOptionName(short)) {
+      throw new CillyException(STRINGS.INVALID_SHORT_OPTION_NAME(short))
     }
-    if (!Parser.isLongOptionName(long)) {
-      throw new Error(STRINGS.INVALID_LONG_OPTION_NAME(long))
+    if (!TokenParser.isLongOptionName(long)) {
+      throw new CillyException(STRINGS.INVALID_LONG_OPTION_NAME(long))
     }
 
     for (const arg of option.args ?? []) {
@@ -403,9 +265,45 @@ export class CliCommand {
     }
   }
 
-  private checkArgument(arg: CliCommandArgument): void {
-    if (!Parser.isValidName(arg.name)) {
-      throw new Error(STRINGS.INVALID_ARGUMENT_NAME(arg.name))
+  private checkArgument(arg: Argument): void {
+    if (!this.isEmpty(this.subCommands)) {
+      throw new CillyException(STRINGS.NO_ARGS_AND_SUBCOMMANDS(this.name))
+    }
+
+    if (!TokenParser.isValidName(arg.name)) {
+      throw new Error(STRINGS.INVALID_ARGUMENT_NAME(this.name))
+    }
+  }
+
+  private checkSubCommand(command: CliCommand): void {
+    if (!this.isEmpty(this.args)) {
+      throw new CillyException(STRINGS.NO_ARGS_AND_SUBCOMMANDS(command.name))
+    }
+  }
+
+  private getShortName(opt: Option): string {
+    return TokenParser.toCamelCase(opt.name[0].replace('-', '').split('-'))
+  }
+
+  private getName(arg: Option | Argument | string): string {
+    if (typeof arg === 'string') {
+      if (TokenParser.isLongOptionName(arg)) {
+        return TokenParser.toCamelCase(arg.replace('--', '').split('-'))
+      } else {
+        return this.shortNameMap[TokenParser.toCamelCase(arg.replace('-', '').split('-'))]
+      }
+    } else if (arg.name instanceof Array) {
+      return TokenParser.toCamelCase(arg.name[1].replace('--', '').split('-'))
+    } else {
+      return TokenParser.toCamelCase(arg.name.split('-'))
+    }
+  }
+
+  private isEmpty(obj: any): boolean {
+    if (obj instanceof Array) {
+      return obj.length === 0
+    } else {
+      return Object.keys(obj).length === 0
     }
   }
 }
