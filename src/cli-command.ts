@@ -36,11 +36,17 @@ export type ParsedInput = {
   extra?: string[]
 }
 
+export type CliCommandOptions = {
+  inheritOpts?: boolean,
+  consumeUnknownOpts?: boolean
+}
+
 export class CliCommand {
 
   name: string
   description: string
   inheritOpts: boolean
+  consumeUnknownOpts: boolean
 
   args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
   opts: { [name: string]: Option } = {}
@@ -54,12 +60,13 @@ export class CliCommand {
   } = { args: {}, opts: {}, extra: [] }
   extra: string[] = []
 
-  constructor(name: string, opts?: { inheritOpts?: boolean }) {
+  constructor(name: string, opts: CliCommandOptions = { inheritOpts: true, consumeUnknownOpts: false }) {
     if (!TokenParser.isValidName(name)) {
       throw new CillyException(STRINGS.INVALID_COMMAND_NAME(name))
     }
     this.name = name
-    this.inheritOpts = opts?.inheritOpts ?? true
+    this.inheritOpts = opts.inheritOpts ?? true
+    this.consumeUnknownOpts = opts.consumeUnknownOpts ?? false
   }
 
   public withDescription(description: string): CliCommand {
@@ -165,7 +172,12 @@ export class CliCommand {
 
     const name = this.getName(next)
     if (!(name in this.opts)) {
-      throw new CillyException(STRINGS.UNKNOWN_OPTION_NAME(next))
+      if (this.consumeUnknownOpts) {
+        this.parsed.extra.push(next)
+        return undefined
+      } else {
+        throw new CillyException(STRINGS.UNKNOWN_OPTION_NAME(next))
+      }
     }
 
     if (name in this.parsed.opts) {

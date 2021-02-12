@@ -53,6 +53,32 @@ describe('CliCommand', () => {
         extra: ['this', 'should', 'go', 'into', 'extra']
       })
     })
+    it('should put all extra options into extra if opts.consumeUnknownOptions is true', () => {
+      const cmd = new CliCommand('test', { consumeUnknownOpts: true })
+        .withArguments([{ name: 'arg' }])
+
+      const parsed = cmd.parse(['test', 'hello', '--go'], { stripExecScript: false })
+      expect(parsed).to.eql({
+        args: {
+          arg: 'hello'
+        },
+        opts: {},
+        extra: ['--go']
+      })
+    })
+    it('should put all extra options and arguments into extra if opts.consumeUnknownOptions is true', () => {
+      const cmd = new CliCommand('test', { consumeUnknownOpts: true })
+        .withArguments([{ name: 'arg' }])
+
+      const parsed = cmd.parse(['test', 'hello', 'this', 'should', '--go', 'into', 'extra'], { stripExecScript: false })
+      expect(parsed).to.eql({
+        args: {
+          arg: 'hello'
+        },
+        opts: {},
+        extra: ['this', 'should', '--go', 'into', 'extra']
+      })
+    })
     it('should generate the appropriate output (1)', () => {
       const cmd = new CliCommand('test')
         .withArguments([{ name: 'first', required: true }, { name: 'second', required: false }])
