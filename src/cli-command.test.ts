@@ -665,4 +665,15 @@ describe('CliCommand', () => {
       })
     })
   })
+  describe('withHelpHandler()', () => {
+    it('should replace the default help handler', async () => {
+      const cmd = new CliCommand('test')
+        .withHandler(() => { null })
+        .withHelpHandler(() => {
+          throw new CillyException('no help')
+        })
+
+      await expect(cmd.process(['test', '--help'], { stripExecScript: false })).to.eventually.be.rejectedWith(CillyException)
+    })
+  })
 })

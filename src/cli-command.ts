@@ -95,6 +95,7 @@ export class CliCommand {
     if (!TokenParser.isValidName(name)) {
       throw new CillyException(STRINGS.INVALID_COMMAND_NAME(name))
     }
+
     this.name = name
     this.inheritOpts = opts.inheritOpts ?? true
     this.consumeUnknownOpts = opts.consumeUnknownOpts ?? false
@@ -104,7 +105,7 @@ export class CliCommand {
       description: 'Display help for command',
       hook: (value): void => {
         if (value) {
-          showHelp(this.dump())
+          this.helpHandler(this.dump())
           process.exit(0)
         }
       }
@@ -166,6 +167,11 @@ export class CliCommand {
 
   public withHandler(handler: CommandHandler): CliCommand {
     this.handler = handler
+    return this
+  }
+
+  public withHelpHandler(handler: (command: CommandDefinition) => void): CliCommand {
+    this.helpHandler = handler
     return this
   }
 
