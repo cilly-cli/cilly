@@ -59,7 +59,7 @@ describe('CliCommand', () => {
       await cmd.process(['test', 'hello', 'general'], { stripExecScript: false })
     })
     it('should throw if a hook assigns an invalid value', async () => {
-      const validator: Validator = (value, parsed) => false
+      const validator: Validator = () => false
       const hook: Hook = async (value, parsed, assign) => {
         await assign(2)
       }
