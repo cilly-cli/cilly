@@ -131,6 +131,37 @@ export class CliCommand {
     return this
   }
 
+  public dump(): any {
+    return {
+      name: this.name,
+      description: this.description,
+      opts: Object.values(this.opts).map(o => this.dumpOption(o)),
+      args: Object.values(this.args).map(a => this.dumpArgument(a)),
+      subCommands: Object.values(this.subCommands).map(c => c.dump())
+    }
+  }
+
+  private dumpOption(o: Option): any {
+    return {
+      name: o.name,
+      description: o.description,
+      required: o.required,
+      negatable: o.negatable,
+      args: o.args ? o.args.map(a => this.dumpArgument(a)) : [],
+      defaultValue: o.defaultValue
+    }
+  }
+
+  private dumpArgument(a: Argument): any {
+    return {
+      name: a.name,
+      description: a.description,
+      required: a.required,
+      defaultValue: a.defaultValue,
+      variadic: a.variadic
+    }
+  }
+
   /**
    * Parses the process arguments and generates args, opts, and extra objects.
    * Does not invoke command handlers and does not invoke hooks or validators.

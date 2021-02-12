@@ -560,4 +560,82 @@ describe('CliCommand', () => {
       }
     })
   })
+  describe('dump()', () => {
+    it('should generate a correct dump for nested subcommands', () => {
+      const parent = new CliCommand('get')
+        .withDescription('This is a get')
+        .withOptions([{ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }] }])
+        .withSubCommands([
+          new CliCommand('download', { inheritOpts: true })
+            .withOptions([{ name: ['-d', '--dry-run'], required: false, defaultValue: true }])
+            .withArguments([{ name: 'path', required: true }])
+        ])
+
+      expect(parent.dump()).to.eql({
+        name: 'get',
+        description: 'This is a get',
+        args: [],
+        opts: [
+          {
+            name: ['-f', '--files'],
+            defaultValue: undefined,
+            description: undefined,
+            negatable: undefined,
+            required: undefined,
+            args: [
+              {
+                name: 'files',
+                variadic: true,
+                defaultValue: undefined,
+                description: undefined,
+                required: undefined
+              }
+            ]
+          }
+        ],
+        subCommands: [
+          {
+            name: 'download',
+            description: undefined,
+            args: [
+              {
+                name: 'path',
+                required: true,
+                variadic: undefined,
+                defaultValue: undefined,
+                description: undefined,
+              }
+            ],
+            opts: [
+              {
+                name: ['-f', '--files'],
+                negatable: undefined,
+                description: undefined,
+                required: undefined,
+                defaultValue: undefined,
+                args: [
+                  {
+                    name: 'files',
+                    variadic: true,
+                    required: undefined,
+                    defaultValue: undefined,
+                    description: undefined
+                  }
+                ]
+              },
+              {
+                name: ['-d', '--dry-run'],
+                required: false,
+                negatable: undefined,
+                description: undefined,
+                defaultValue: true,
+                args: []
+              }
+            ],
+            subCommands: []
+          }
+        ]
+      })
+    })
+  })
 })
