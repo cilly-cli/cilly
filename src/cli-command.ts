@@ -340,7 +340,7 @@ export class CliCommand {
       // It's an option (option.name is [short-flag, long-flag])
       return TokenParser.toCamelCase(arg.name[1].replace('--', '').split('-'))
     } else {
-      // It's an argument
+      // It's an argument (just a string)
       return TokenParser.toCamelCase(arg.name.split('-'))
     }
   }

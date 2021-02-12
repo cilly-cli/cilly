@@ -17,6 +17,23 @@ describe('CliCommand', () => {
       expect((err as CillyException).message).to.equal(STRINGS.INVALID_COMMAND_NAME(''))
     }
   })
+  describe('process()', () => {
+    it('should throw an error if any (sub)commands are missing handlers', () => {
+      expect(false)
+    })
+    it('should invoke the appropriate (sub)command handler', () => {
+      expect(false)
+    })
+    it('should invoke the appropriate validators', () => {
+      expect(false)
+    })
+    it('should invoke the appropriate hooks', () => {
+      expect(false)
+    })
+    it('should throw an error if validation fails', () => {
+      expect(false)
+    })
+  })
   describe('parse()', () => {
     it('should parse input as defined by subcommand when invoked', () => {
       const cmd = new CliCommand('parent')
