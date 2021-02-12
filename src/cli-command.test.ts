@@ -141,6 +141,18 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should correctly negate negatable flags', () => {
+      const cmd = new CliCommand('parent')
+        .withOptions([{ name: ['-v', '--verbose'], defaultValue: true, negatable: true }])
+      const parsed = cmd.parse(['parent', '--no-verbose'], { stripExecScript: false })
+      expect(parsed).to.eql({
+        args: {},
+        opts: {
+          verbose: false
+        },
+        extra: []
+      })
+    })
     it('should parse input as defined by subcommand when invoked', () => {
       const cmd = new CliCommand('parent')
         .withOptions([{ name: ['-v', '--verbose'], defaultValue: false }])

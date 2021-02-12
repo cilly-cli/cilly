@@ -23,7 +23,7 @@ export type Argument = {
 export type Option = {
   name: [string, string],
   required?: boolean,
-  negated?: boolean,
+  negatable?: boolean,
   args?: Argument[],
   defaultValue?: OptionValue,
   description?: string,
@@ -55,6 +55,7 @@ export class CliCommand {
   subCommands: { [name: string]: CliCommand } = {}
   shortNameMap: { [shortName: string]: string } = {}
   argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
+  negatableOptsMap: { [name: string]: Option } = {}  // Maps --no-* flags to negatable options
 
   parsed: {
     args: ParsedArguments
@@ -100,6 +101,10 @@ export class CliCommand {
       }
       if (short in this.shortNameMap) {
         throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(short))
+      }
+      if (option.negatable) {
+        const negatedFlag = this.getNegatedFlag(option)
+        this.negatableOptsMap[negatedFlag] = option
       }
 
       this.opts[name] = option
@@ -249,8 +254,13 @@ export class CliCommand {
     }
 
     const name = this.getName(next)
+
     if (!(name in this.opts)) {
-      if (this.consumeUnknownOpts) {
+      if (next in this.negatableOptsMap) {
+        const opt = this.negatableOptsMap[next]
+        return [this.getName(opt), false]
+      }
+      else if (this.consumeUnknownOpts) {
         this.parsed.extra.push(next)
         return undefined
       } else {
@@ -437,5 +447,9 @@ export class CliCommand {
     } else {
       return Object.keys(obj).length === 0
     }
+  }
+
+  private getNegatedFlag(opt: Option): string {
+    return `--no-${opt.name[1].replace('--', '')}`
   }
 }
