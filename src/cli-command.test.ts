@@ -1,7 +1,7 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import { stub } from 'sinon'
-import { Argument, CliCommand, Option } from './cli-command'
+import { spy, stub } from 'sinon'
+import { Argument, CliCommand, Hook, Option, Validator } from './cli-command'
 import { CillyException } from './exceptions/cilly-exception'
 import { STRINGS } from './strings'
 
@@ -18,20 +18,64 @@ describe('CliCommand', () => {
     }
   })
   describe('process()', () => {
-    it('should throw an error if any (sub)commands are missing handlers', () => {
-      expect(false)
+    it('should invoke the appropriate (sub)command handler', async () => {
+      const handler = spy(() => { null })
+      const otherHandler = spy(() => { null })
+      const cmd = new CliCommand('test').withHandler(handler).withSubCommands([new CliCommand('hello').withHandler(otherHandler)])
+
+      await cmd.process(['test'])
+      expect(handler.called).to.be.true
+      expect(otherHandler.called).to.be.false
     })
-    it('should invoke the appropriate (sub)command handler', () => {
-      expect(false)
+    it('should invoke the appropriate hooks', async () => {
+      const hook = spy(() => { null })
+      const otherHook = spy(() => { null })
+      const cmd = new CliCommand('test')
+        .withArguments([{ name: 'arg', hook: hook }])
+        .withOptions([{ name: ['-v', '--verbose'], hook: otherHook }])
+        .withHandler(() => { null })
+
+      await cmd.process(['test'])
+      expect(hook.called).to.be.true
+      expect(otherHook.called).to.be.true
     })
     it('should invoke the appropriate validators', () => {
       expect(false)
     })
-    it('should invoke the appropriate hooks', () => {
-      expect(false)
-    })
     it('should throw an error if validation fails', () => {
       expect(false)
+    })
+    it('should alter the parsed input if a hook.assign() is called', async () => {
+      const hook: Hook = async (value, parsed, assign) => {
+        await assign(2)
+      }
+
+      const cmd = new CliCommand('test')
+        .withArguments([{ name: 'arg', hook: hook }, { name: 'ot' }])
+        .withHandler((args) => {
+          expect(args.arg).to.equal(2)
+          expect(args.ot).to.equal('general')
+        })
+      await cmd.process(['test', 'hello', 'general'], { stripExecScript: false })
+    })
+    it('should throw if a hook assigns an invalid value', async () => {
+      const validator: Validator = (value, parsed) => false
+      const hook: Hook = async (value, parsed, assign) => {
+        await assign(2)
+      }
+
+      const cmd = new CliCommand('test')
+        .withArguments([{ name: 'arg', hook: hook, validator: validator }, { name: 'ot' }])
+        .withHandler(() => { null })
+
+      await expect(cmd.process(['test', 'hello', 'general'], { stripExecScript: false }))
+        .to.eventually.be.rejectedWith(CillyException)
+
+      try {
+        await cmd.process(['test', 'hello', 'general'], { stripExecScript: false })
+      } catch (err) {
+        expect((err as CillyException).message).to.equal(STRINGS.VALIDATION_ERROR('arg', 2, false))
+      }
     })
   })
   describe('checkForMissingCommandHandlers()', () => {

@@ -1,4 +1,3 @@
-import { OptionValue } from './cli-command'
 
 export const STRINGS = {
   UNKNOWN_OPTION_NAME: (name: string): string => `Unkown option name: ${name}`,
@@ -14,13 +13,8 @@ export const STRINGS = {
   DUPLICATE_OPT_NAME: (name: string): string => `The option "${name}" is already a registered option name.`,
   DUPLICATE_COMMAND_NAME: (subCommandName: string, parentCommandName: string): string => `The command name "${subCommandName}" is already a registered subcommand for. ${parentCommandName}`,
   NO_ARGS_AND_SUBCOMMANDS: (command: string): string => `Command "${command}": a command can only register arguments or subcommands, not both.`,
-  ARGUMENT_VALIDATION_ERROR: (arg: string, value: OptionValue, error: string | boolean): string => {
-    let msg = `Invalid value ${value} for argument ${arg}`
-    msg += typeof error === 'string' ? `: ${error}` : '.'
-    return msg
-  },
-  OPTION_VALIDATION_ERROR: (opt: string, value: OptionValue, error: string | boolean): string => {
-    let msg = `Invalid value ${value} for option ${opt}`
+  VALIDATION_ERROR: (arg: string, value: any, error: string | boolean): string => {
+    let msg = `Invalid value ${value} for ${arg}`
     msg += typeof error === 'string' ? `: ${error}` : '.'
     return msg
   }

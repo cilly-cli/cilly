@@ -6,8 +6,8 @@ export type ArgumentValue = any
 export type OptionValue = ArgumentValue | { [name: string]: ArgumentValue }
 export type ParsedArguments = { [name: string]: ArgumentValue }
 export type ParsedOptions = { [name: string]: OptionValue }
-export type Validator = (value: ArgumentValue, input: ParsedInput) => string | boolean
-export type Hook = (value: ArgumentValue, input: ParsedInput, validator?: Validator) => any
+export type Validator = (value: ArgumentValue, input: ParsedInput) => Promise<string | boolean> | string | boolean
+export type Hook = (value: ArgumentValue, input: ParsedInput, assign: (value: any) => Promise<void>) => any
 export type CommandHandler = (args: ParsedArguments, opts: ParsedOptions, extra?: string[]) => Promise<void> | void
 
 export type Argument = {
@@ -133,7 +133,7 @@ export class CliCommand {
    * @param opts parse() automatically strips the first two arguments from its input.
    * To prevent this, set opts.stripExecScript to false.
    */
-  public parse(processArgs: string[], opts: { stripExecScript: boolean } = { stripExecScript: true }): ParsedInput {
+  public parse(processArgs: string[], opts: { stripExecScript?: boolean } = { stripExecScript: true }): ParsedInput {
     // The "queue" of arguments, cloned so we don't modify the original
     const q = [...opts.stripExecScript ? processArgs.slice(2) : processArgs]
 
@@ -172,7 +172,9 @@ export class CliCommand {
     return this.parsed
   }
 
-  public async process(processArgs: string[], opts = { stripExecScript: true, consumeUnknownOpts: false }): Promise<void> {
+  public async process(
+    processArgs: string[],
+    opts: { stripExecScript?: boolean } = {}): Promise<any> {
     this.checkForMissingCommandHandlers()
 
     const parsed = this.parse(processArgs, opts)
@@ -183,6 +185,11 @@ export class CliCommand {
     await this.runHooks(parsed, 'opts', this.opts)
 
     // Run validators
+
+    // Run handler
+    if (command.handler !== undefined) {
+      return command.handler(parsed.args, parsed.opts, parsed.extra)
+    }
   }
 
   private checkForMissingCommandHandlers(): void {
@@ -196,11 +203,29 @@ export class CliCommand {
   }
 
   private async runHooks(parsed: ParsedInput, type: 'args' | 'opts', definitions: { [name: string]: Option | Argument }): Promise<void> {
-    for (const [name, value] of Object.entries(parsed)) {
-      const hook = definitions[name].hook
-      if (hook) {
-        parsed[type][name] = await hook(value, parsed, definitions[name].validator)
+    for (const [name, definition] of Object.entries(definitions)) {
+      if (definition.hook) {
+        const value = parsed[type][name]
+
+        // Let the hook call a function to assign a new value
+        // ensuring that the value is validated
+        const assign = async (value: any): Promise<void> => {
+          await this.validate(value, parsed, definition)
+          parsed[type][name] = value
+        }
+
+        await definition.hook(value, parsed, assign)
       }
+    }
+  }
+
+  private async validate(value: any, parsed: ParsedInput, optOrArg: Option | Argument): Promise<void> {
+    if (!optOrArg.validator) {
+      return
+    }
+    const validationResult = await optOrArg.validator(value, parsed)
+    if (validationResult !== true) {
+      throw new CillyException(STRINGS.VALIDATION_ERROR(this.getName(optOrArg), value, validationResult))
     }
   }
 
