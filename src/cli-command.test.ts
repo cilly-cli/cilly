@@ -40,6 +40,19 @@ describe('CliCommand', () => {
         expect((err as CillyException).message).to.equal(STRINGS.UNKNOWN_OPTION_NAME('--not-same'))
       }
     })
+    it('should put all extra arguments into extra', () => {
+      const cmd = new CliCommand('test')
+        .withArguments([{ name: 'arg' }])
+
+      const parsed = cmd.parse(['test', 'hello', 'this', 'should', 'go', 'into', 'extra'], { stripExecScript: false })
+      expect(parsed).to.eql({
+        args: {
+          arg: 'hello'
+        },
+        opts: {},
+        extra: ['this', 'should', 'go', 'into', 'extra']
+      })
+    })
     it('should generate the appropriate output (1)', () => {
       const cmd = new CliCommand('test')
         .withArguments([{ name: 'first', required: true }, { name: 'second', required: false }])
