@@ -388,6 +388,10 @@ export class CliCommand {
     if (!this.isEmpty(this.args)) {
       throw new CillyException(STRINGS.NO_ARGS_AND_SUBCOMMANDS(command.name))
     }
+
+    if (command.name in this.subCommands) {
+      throw new CillyException(STRINGS.DUPLICATE_COMMAND_NAME(command.name, this.name))
+    }
   }
 
   /**

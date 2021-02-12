@@ -535,5 +535,17 @@ describe('CliCommand', () => {
       expect(child.opts).to.haveOwnProperty('short')
       expect(child.opts).to.haveOwnProperty('nada')
     })
+    it('should throw on duplicate subcommands', () => {
+      const parent = new CliCommand('parent')
+      const first = new CliCommand('first')
+      const alsoFirst = new CliCommand('first')
+      const throwing = (): void => { parent.withSubCommands([first, alsoFirst]) }
+      expect(throwing).to.throw(CillyException)
+      try {
+        throwing()
+      } catch (err) {
+        expect((err as CillyException).message).to.equal(STRINGS.DUPLICATE_COMMAND_NAME('first', 'parent'))
+      }
+    })
   })
 })
