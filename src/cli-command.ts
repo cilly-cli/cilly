@@ -109,7 +109,7 @@ export class CliCommand {
     for (const command of commands) {
       this.checkSubCommand(command)
       if (command.inheritOpts) {
-        command.opts = { ...command.opts, ...this.opts }
+        command.opts = { ...this.opts, ...command.opts }
       }
       this.subCommands[command.name] = command
     }
@@ -130,15 +130,15 @@ export class CliCommand {
 
     // Parse the input
     while (q.length) {
-      let next = q[0]
+      const next = q[0]
 
       if (next === this.name) {
         q.shift()
-        next = q[0]
+        continue
       }
 
       if (next in this.subCommands) {
-        return this.subCommands[next].parse(q)
+        return this.subCommands[next].parse(q, { stripExecScript: false })
       }
 
       if (TokenParser.isOptionName(next)) {

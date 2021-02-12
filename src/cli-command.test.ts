@@ -18,6 +18,29 @@ describe('CliCommand', () => {
     }
   })
   describe('parse()', () => {
+    it('should parse input as defined by subcommand when invoked', () => {
+      const cmd = new CliCommand('parent')
+        .withOptions([{ name: ['-v', '--verbose'], defaultValue: false }])
+        .withSubCommands([
+          new CliCommand('child')
+            .withOptions([
+              { name: ['-v', '--verbose'], defaultValue: true },
+              { name: ['-f', '--files'], args: [{ name: 'files', variadic: true }] }
+            ])
+        ])
+
+      const parsed = cmd.parse(['parent', 'child', '-f', '.gitignore', '.eslintrc.json'], { stripExecScript: false })
+      expect(parsed).to.eql({
+        args: {},
+        opts: {
+          verbose: true,
+          files: ['.gitignore', '.eslintrc.json']
+        },
+        extra: []
+      })
+    })
+  })
+  describe('parse()', () => {
     it('should throw an error when duplicate options are passed', () => {
       const cmd = new CliCommand('test').withOptions([{ name: ['-s', '--same'] }])
       const throwing = (): void => { cmd.parse(['test', '--same', '--same'], { stripExecScript: false }) }

@@ -12,4 +12,3 @@ const cli = new CliCommand('test-cli')
     { name: 'dir', required: true }
   ])
 
-console.log(JSON.stringify(cli.parse(process.argv), null, 2))
