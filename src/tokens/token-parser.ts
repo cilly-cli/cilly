@@ -1,3 +1,5 @@
+import { CillyException } from '../exceptions/cilly-exception'
+
 const VARIADIC_SYNTAX = /(\.{3})/
 const WHITESPACE = /(\s)*/
 const OPTION_NAME_SYNTAX = /(\w((\w\-\w)|\w|)*)/
@@ -41,7 +43,7 @@ const toCamelCase = (words: string[]): string =>
 const getLongOptionName = (signature: string): string => {
   const match = signature.match(LONG_OPTION_NAME_SYNTAX)
   if (match === null) {
-    throw new Error(`Could not extract a long option name from ${signature}`)
+    throw new CillyException(`Could not extract a long option name from ${signature}`)
   }
 
   return match[0].replace('--', '')

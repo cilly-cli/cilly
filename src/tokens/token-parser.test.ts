@@ -3,7 +3,7 @@ import { describe } from 'mocha'
 import { TokenParser } from './token-parser'
 
 
-describe('src/parser/parser.ts', () => {
+describe('src/token-parser/token-parser.ts', () => {
 
   describe('isValidName()', () => {
     it('should return false on empty strings', () => {

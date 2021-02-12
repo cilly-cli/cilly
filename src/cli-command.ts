@@ -68,15 +68,10 @@ export class CliCommand {
   }
 
   public withArguments(args: Argument[]): CliCommand {
-    if (Object.keys(this.subCommands).length && args.length) {
-      throw new Error(STRINGS.NO_ARGS_AND_SUBCOMMANDS(this.name))
-    }
-
     for (const arg of args) {
       this.checkArgument(arg)
-      const name = this.getName(arg)
       if (this.args.some(a => a.name == arg.name)) {
-        throw new CillyException(STRINGS.DUPLICATE_ARG_NAME(name))
+        throw new CillyException(STRINGS.DUPLICATE_ARG_NAME(arg.name))
       }
       this.args.push(arg)
     }
@@ -155,6 +150,7 @@ export class CliCommand {
       }
     }
 
+    this.handleUnassignedOptions()
     this.handleUnassignedArguments()
 
     return this.parsed
@@ -168,14 +164,15 @@ export class CliCommand {
     }
 
     const name = this.getName(next)
-    const opt = this.opts[name]
-    if (opt === undefined) {
+    if (!(name in this.opts)) {
       throw new CillyException(STRINGS.UNKNOWN_OPTION_NAME(next))
     }
 
-    if (this.parsed.opts[name]) {
+    if (name in this.parsed.opts) {
       throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(name))
     }
+
+    const opt = this.opts[name]
 
     let optValue: OptionValue
 
@@ -193,6 +190,8 @@ export class CliCommand {
       }
     }
 
+    // Fold the option arugment into the option itself if there's only one argument, e.g:
+    // myOption = { arg: 1 } becomes myOption = 1
     if (optValue instanceof Object && Object.keys(optValue).length == 1) {
       optValue = Object.values(optValue)[0]
     }
@@ -224,7 +223,7 @@ export class CliCommand {
       }
     }
 
-    return [arg.name, argValue]
+    return [this.getName(arg), argValue]
   }
 
   private consumeVariadicArguments(q: string[]): string[] {
@@ -238,13 +237,33 @@ export class CliCommand {
     return args
   }
 
+  /**
+   * To be called at the end of parsing, checks that all required options have been
+   * assigned and assigns default values to all unassigned, optional options
+   */
+  private handleUnassignedOptions(): void {
+    for (const [name, opt] of Object.entries(this.opts)) {
+      if (!(name in this.parsed.opts)) {
+        if (opt.required) {
+          throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`a value for "${name}"`, 'nothing'))
+        } else {
+          this.parsed.opts[name] = opt.defaultValue
+        }
+      }
+    }
+  }
+
+  /**
+   * To be called at the end of parsing, checks that all required arguments
+   * have been assigned and assigns default values to all unassigned, optional args
+   */
   private handleUnassignedArguments(): void {
     for (const a of this.args.filter(a => a.required)) {
-      throw new Error(STRINGS.EXPECTED_BUT_GOT(`a value for "${a.name}"`, 'nothing'))
+      throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`a value for "${a.name}"`, 'nothing'))
     }
 
     for (const a of this.args) {
-      this.parsed.args[a.name] = a.defaultValue
+      this.parsed.args[this.getName(a)] = a.defaultValue
     }
   }
 
@@ -271,7 +290,7 @@ export class CliCommand {
     }
 
     if (!TokenParser.isValidName(arg.name)) {
-      throw new Error(STRINGS.INVALID_ARGUMENT_NAME(this.name))
+      throw new CillyException(STRINGS.INVALID_ARGUMENT_NAME(arg.name))
     }
   }
 
@@ -281,24 +300,43 @@ export class CliCommand {
     }
   }
 
+  /**
+   * Returns the camelCased version of the short flag of an option.
+   * @param opt An option with a short flag definition.
+   */
   private getShortName(opt: Option): string {
     return TokenParser.toCamelCase(opt.name[0].replace('-', '').split('-'))
   }
 
+  /**
+   * Returns the camelCased name of an option, arguemnt, or flag definition (string).
+   * If the passed string is a short-flag definition (e.g. "-v" for the "--verbose" flag)
+   * the long name (in this case "verbose") will be returned.
+   * @param arg The option, argument, or flag definition to get the name for.
+   */
   private getName(arg: Option | Argument | string): string {
     if (typeof arg === 'string') {
+      // It's a flag definition - parse long definitions directly, and
+      // look up the name for short-flag definitions in the shortNameMap
       if (TokenParser.isLongOptionName(arg)) {
         return TokenParser.toCamelCase(arg.replace('--', '').split('-'))
       } else {
-        return this.shortNameMap[TokenParser.toCamelCase(arg.replace('-', '').split('-'))]
+        const shortName = TokenParser.toCamelCase(arg.replace('-', '').split('-'))
+        return this.shortNameMap[shortName]
       }
     } else if (arg.name instanceof Array) {
+      // It's an option (option.name is [short-flag, long-flag])
       return TokenParser.toCamelCase(arg.name[1].replace('--', '').split('-'))
     } else {
+      // It's an argument
       return TokenParser.toCamelCase(arg.name.split('-'))
     }
   }
 
+  /**
+   * Utility method for testing empty objects or arrays
+   * @param obj Object or array to test
+   */
   private isEmpty(obj: any): boolean {
     if (obj instanceof Array) {
       return obj.length === 0

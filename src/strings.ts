@@ -9,7 +9,6 @@ export const STRINGS = {
   INVALID_ARGUMENT_NAME: (name: string): string => `Invalid argument name: ${name}`,
   INVALID_ARGUMENT_TYPE: (type: string, name: string): string => `The type of an argument must be required|optional|variadic, but was ${type} (${name})`,
   EXPECTED_BUT_GOT: (a: string, b: string): string => `Expected ${a} but got ${b}`,
-  EMPTY_REQUIRED_VARIADIC_VALUES: (name: string): string => '',
   NO_COMMAND_HANDLER: (command: string): string => `Cannot process arguments; no handler is defined for command "${command}".`,
   DUPLICATE_ARG_NAME: (name: string): string => `The argument "${name}" is already a registered argument name.`,
   DUPLICATE_OPT_NAME: (name: string): string => `The option "${name}" is already a registered option name.`,
