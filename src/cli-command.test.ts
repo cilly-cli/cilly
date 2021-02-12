@@ -34,6 +34,68 @@ describe('CliCommand', () => {
       expect(false)
     })
   })
+  describe('checkForMissingCommandHandlers()', () => {
+    it('should throw if any subcommand is missing a handler', () => {
+      const first = new CliCommand('first')
+      const second = new CliCommand('second')
+      const third = new CliCommand('third')
+
+      first.withSubCommands([second])
+      second.withSubCommands([third, first])
+
+      const checkForMissingCommandHandlers = (first as any).checkForMissingCommandHandlers.bind(first)
+      expect(() => checkForMissingCommandHandlers()).to.throw(CillyException)
+      try {
+        checkForMissingCommandHandlers()
+      } catch (err) {
+        expect((err as CillyException).message).to.equal(STRINGS.NO_COMMAND_HANDLER(first.name))
+      }
+
+      first.handler = (): void => { null }
+      second.handler = (): void => { null }
+
+      expect(() => checkForMissingCommandHandlers()).to.throw(CillyException)
+      try {
+        checkForMissingCommandHandlers()
+      } catch (err) {
+        expect((err as CillyException).message).to.equal(STRINGS.NO_COMMAND_HANDLER(third.name))
+      }
+    })
+    it('should not throw if no subcommand is missing a handler', () => {
+      const first = new CliCommand('first')
+      const second = new CliCommand('second')
+      const third = new CliCommand('third')
+      const checkForMissingCommandHandlers = (first as any).checkForMissingCommandHandlers.bind(first)
+
+      first.withSubCommands([second])
+      second.withSubCommands([third])
+
+      first.handler = (): void => { null }
+      second.handler = (): void => { null }
+      third.handler = (): void => { null }
+
+      expect(() => checkForMissingCommandHandlers()).to.not.throw()
+    })
+  })
+  describe('getCommand()', () => {
+    it('should return the correct command', () => {
+      const first = new CliCommand('first')
+      const second = new CliCommand('second')
+      const third = new CliCommand('third')
+
+      first.withSubCommands([second])
+      second.withSubCommands([third, first])
+
+      const getCommand = (first as any).getCommand.bind(first)
+      expect(getCommand(['first'])).to.eql(first)
+      expect(getCommand(['first', 'third'])).to.eql(first)
+      expect(getCommand(['first', 'second'])).to.eql(second)
+      expect(getCommand(['first', 'second', 'third'])).to.eql(third)
+      expect(getCommand(['first', 'second', 'first'])).to.eql(first)
+      expect(getCommand(['first', 'second', 'first', 'hello', 'extra'])).to.eql(first)
+
+    })
+  })
   describe('parse()', () => {
     it('should parse input as defined by subcommand when invoked', () => {
       const cmd = new CliCommand('parent')

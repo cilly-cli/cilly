@@ -7,7 +7,8 @@ export type OptionValue = ArgumentValue | { [name: string]: ArgumentValue }
 export type ParsedArguments = { [name: string]: ArgumentValue }
 export type ParsedOptions = { [name: string]: OptionValue }
 export type Validator = (value: ArgumentValue, input: ParsedInput) => string | boolean
-export type Hook = (value: ArgumentValue, validator: Validator, input: ParsedInput) => any
+export type Hook = (value: ArgumentValue, input: ParsedInput, validator?: Validator) => any
+export type CommandHandler = (args: ParsedArguments, opts: ParsedOptions, extra?: string[]) => Promise<void> | void
 
 export type Argument = {
   name: string,
@@ -44,6 +45,7 @@ export type CliCommandOptions = {
 export class CliCommand {
 
   name: string
+  handler?: CommandHandler
   description: string
   inheritOpts: boolean
   consumeUnknownOpts: boolean
@@ -52,6 +54,7 @@ export class CliCommand {
   opts: { [name: string]: Option } = {}
   subCommands: { [name: string]: CliCommand } = {}
   shortNameMap: { [shortName: string]: string } = {}
+  argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
 
   parsed: {
     args: ParsedArguments
@@ -81,6 +84,7 @@ export class CliCommand {
         throw new CillyException(STRINGS.DUPLICATE_ARG_NAME(arg.name))
       }
       this.args.push(arg)
+      this.argsMap[this.getName(arg)] = arg
     }
 
     return this
@@ -114,6 +118,11 @@ export class CliCommand {
       this.subCommands[command.name] = command
     }
 
+    return this
+  }
+
+  public withHandler(handler: CommandHandler): CliCommand {
+    this.handler = handler
     return this
   }
 
@@ -161,6 +170,50 @@ export class CliCommand {
     this.handleUnassignedArguments()
 
     return this.parsed
+  }
+
+  public async process(processArgs: string[], opts = { stripExecScript: true, consumeUnknownOpts: false }): Promise<void> {
+    this.checkForMissingCommandHandlers()
+
+    const parsed = this.parse(processArgs, opts)
+    const command = this.getCommand(processArgs)
+
+    // Run hooks
+    await this.runHooks(parsed, 'args', this.argsMap)
+    await this.runHooks(parsed, 'opts', this.opts)
+
+    // Run validators
+  }
+
+  private checkForMissingCommandHandlers(): void {
+    if (!this.handler) {
+      throw new CillyException(STRINGS.NO_COMMAND_HANDLER(this.name))
+    }
+
+    for (const subCommand of Object.values(this.subCommands)) {
+      subCommand.checkForMissingCommandHandlers()
+    }
+  }
+
+  private async runHooks(parsed: ParsedInput, type: 'args' | 'opts', definitions: { [name: string]: Option | Argument }): Promise<void> {
+    for (const [name, value] of Object.entries(parsed)) {
+      const hook = definitions[name].hook
+      if (hook) {
+        parsed[type][name] = await hook(value, parsed, definitions[name].validator)
+      }
+    }
+  }
+
+  private getCommand(processArgs: string[]): CliCommand {
+    if (processArgs[0] == this.name) {
+      processArgs = processArgs.slice(1)
+    }
+
+    if (processArgs[0] in this.subCommands) {
+      return this.subCommands[processArgs[0]].getCommand(processArgs.slice(1))
+    } else {
+      return this
+    }
   }
 
   private consumeOption(q: string[]): [string, OptionValue] | undefined {
