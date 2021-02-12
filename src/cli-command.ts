@@ -1,6 +1,7 @@
 import { CillyException } from './exceptions/cilly-exception'
+import { showHelp } from './presentation'
 import { STRINGS } from './strings'
-import { TokenParser } from './tokens/token-parser'
+import { getNegatedFlag, TokenParser } from './tokens/token-parser'
 
 export type ArgumentValue = any
 export type OptionValue = ArgumentValue | { [name: string]: ArgumentValue }
@@ -42,10 +43,36 @@ export type CliCommandOptions = {
   consumeUnknownOpts?: boolean
 }
 
+export type OptionDefinition = {
+  name: [string, string],
+  args: ArgumentDefinition[],
+  description?: string,
+  required?: boolean,
+  negatable?: boolean,
+  defaultValue?: any
+}
+
+export type ArgumentDefinition = {
+  name: string,
+  description?: string,
+  required?: boolean,
+  defaultValue?: any,
+  variadic?: boolean
+}
+
+export type CommandDefinition = {
+  name: string,
+  description?: string,
+  opts: OptionDefinition[],
+  args: ArgumentDefinition[],
+  subCommands: CommandDefinition[]
+}
+
 export class CliCommand {
 
   name: string
   handler?: CommandHandler
+  helpHandler: (command: CommandDefinition) => void
   description: string
   inheritOpts: boolean
   consumeUnknownOpts: boolean
@@ -71,6 +98,17 @@ export class CliCommand {
     this.name = name
     this.inheritOpts = opts.inheritOpts ?? true
     this.consumeUnknownOpts = opts.consumeUnknownOpts ?? false
+    this.helpHandler = showHelp
+    this.withOptions([{
+      name: ['-h', '--help'],
+      description: 'Display help for command',
+      hook: (value): void => {
+        if (value) {
+          showHelp(this.dump())
+          process.exit(0)
+        }
+      }
+    }])
   }
 
   public withDescription(description: string): CliCommand {
@@ -103,7 +141,7 @@ export class CliCommand {
         throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(short))
       }
       if (option.negatable) {
-        const negatedFlag = this.getNegatedFlag(option)
+        const negatedFlag = getNegatedFlag(option.name[1])
         this.negatableOptsMap[negatedFlag] = option
       }
 
@@ -131,17 +169,18 @@ export class CliCommand {
     return this
   }
 
-  public dump(): any {
+  public dump(): CommandDefinition {
+
     return {
       name: this.name,
       description: this.description,
       opts: Object.values(this.opts).map(o => this.dumpOption(o)),
-      args: Object.values(this.args).map(a => this.dumpArgument(a)),
+      args: Object.values(this.argsMap).map(a => this.dumpArgument(a)),
       subCommands: Object.values(this.subCommands).map(c => c.dump())
     }
   }
 
-  private dumpOption(o: Option): any {
+  private dumpOption(o: Option): OptionDefinition {
     return {
       name: o.name,
       description: o.description,
@@ -152,7 +191,7 @@ export class CliCommand {
     }
   }
 
-  private dumpArgument(a: Argument): any {
+  private dumpArgument(a: Argument): ArgumentDefinition {
     return {
       name: a.name,
       description: a.description,
@@ -427,7 +466,7 @@ export class CliCommand {
 
   private checkSubCommand(command: CliCommand): void {
     if (!this.isEmpty(this.args)) {
-      throw new CillyException(STRINGS.NO_ARGS_AND_SUBCOMMANDS(command.name))
+      throw new CillyException(STRINGS.NO_ARGS_AND_SUBCOMMANDS(this.name))
     }
 
     if (command.name in this.subCommands) {
@@ -478,9 +517,5 @@ export class CliCommand {
     } else {
       return Object.keys(obj).length === 0
     }
-  }
-
-  private getNegatedFlag(opt: Option): string {
-    return `--no-${opt.name[1].replace('--', '')}`
   }
 }

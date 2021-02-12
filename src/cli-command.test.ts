@@ -148,7 +148,8 @@ describe('CliCommand', () => {
       expect(parsed).to.eql({
         args: {},
         opts: {
-          verbose: false
+          verbose: false,
+          help: undefined
         },
         extra: []
       })
@@ -169,7 +170,8 @@ describe('CliCommand', () => {
         args: {},
         opts: {
           verbose: true,
-          files: ['.gitignore', '.eslintrc.json']
+          files: ['.gitignore', '.eslintrc.json'],
+          help: undefined
         },
         extra: []
       })
@@ -207,7 +209,9 @@ describe('CliCommand', () => {
         args: {
           arg: 'hello'
         },
-        opts: {},
+        opts: {
+          help: undefined
+        },
         extra: ['this', 'should', 'go', 'into', 'extra']
       })
     })
@@ -220,7 +224,9 @@ describe('CliCommand', () => {
         args: {
           arg: 'hello'
         },
-        opts: {},
+        opts: {
+          help: undefined
+        },
         extra: ['--go']
       })
     })
@@ -233,7 +239,9 @@ describe('CliCommand', () => {
         args: {
           arg: 'hello'
         },
-        opts: {},
+        opts: {
+          help: undefined
+        },
         extra: ['this', 'should', '--go', 'into', 'extra']
       })
     })
@@ -261,6 +269,7 @@ describe('CliCommand', () => {
             first: 'general',
             second: 'kenobi'
           },
+          help: undefined,
           dir: '/usr/bin/'
         },
         extra: []
@@ -281,7 +290,8 @@ describe('CliCommand', () => {
         },
         opts: {
           many: ['many-one', 'many two'],
-          manyOptional: [1, 2, 3]
+          manyOptional: [1, 2, 3],
+          help: undefined
         },
         extra: []
       })
@@ -344,7 +354,7 @@ describe('CliCommand', () => {
       try {
         throwing()
       } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.NO_ARGS_AND_SUBCOMMANDS('something'))
+        expect((err as CillyException).message).to.equal(STRINGS.NO_ARGS_AND_SUBCOMMANDS('test'))
       }
     })
     it('should not do anything if command has no arguments', () => {
@@ -472,7 +482,8 @@ describe('CliCommand', () => {
       handleUnassignedOptions()
       const opts = (cli as any).parsed.opts
       expect(opts).to.eql({
-        same: [1, 2, 3]
+        same: [1, 2, 3],
+        help: undefined
       })
     })
   })
@@ -577,6 +588,14 @@ describe('CliCommand', () => {
         args: [],
         opts: [
           {
+            name: ['-h', '--help'],
+            required: undefined,
+            negatable: undefined,
+            defaultValue: undefined,
+            description: 'Display help for command',
+            args: []
+          },
+          {
             name: ['-f', '--files'],
             defaultValue: undefined,
             description: undefined,
@@ -591,7 +610,7 @@ describe('CliCommand', () => {
                 required: undefined
               }
             ]
-          }
+          },
         ],
         subCommands: [
           {
@@ -607,6 +626,14 @@ describe('CliCommand', () => {
               }
             ],
             opts: [
+              {
+                name: ['-h', '--help'],
+                required: undefined,
+                negatable: undefined,
+                defaultValue: undefined,
+                description: 'Display help for command',
+                args: []
+              },
               {
                 name: ['-f', '--files'],
                 negatable: undefined,

@@ -8,7 +8,13 @@ const cli = new CliCommand('test-cli')
     { name: ['-v', '--verbose'], defaultValue: true },
     { name: ['-f', '--files'], args: [{ name: 'files', variadic: true }], defaultValue: [] }
   ])
-  .withArguments([
-    { name: 'dir', required: true }
+  .withHandler(() => { null })
+  .withSubCommands([
+    new CliCommand('hello')
+      .withDescription('Just say hello')
+      .withArguments([{ name: 'nothing' }])
+      .withOptions([{ name: ['-hi', '--hello'], description: 'This is in the subcommand' }])
+      .withHandler(() => { null })
   ])
 
+cli.process(process.argv).then(null).catch(null)

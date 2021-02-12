@@ -49,6 +49,10 @@ const getLongOptionName = (signature: string): string => {
   return match[0].replace('--', '')
 }
 
+export const getNegatedFlag = (longFlag): string => {
+  return `--no-${longFlag.replace('--', '')}`
+}
+
 export const TokenParser = {
   isValidName,
   isShortOptionName,
