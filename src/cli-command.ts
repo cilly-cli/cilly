@@ -175,7 +175,6 @@ export class CliCommand {
   }
 
   public dump(dumped: CliCommand[] = []): CommandDefinition {
-
     return {
       name: this.name,
       description: this.description,
