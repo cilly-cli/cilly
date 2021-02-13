@@ -174,14 +174,14 @@ export class CliCommand {
     return this
   }
 
-  public dump(): CommandDefinition {
+  public dump(dumped: CliCommand[] = []): CommandDefinition {
 
     return {
       name: this.name,
       description: this.description,
       opts: Object.values(this.opts).map(o => this.dumpOption(o)),
       args: Object.values(this.argsMap).map(a => this.dumpArgument(a)),
-      subCommands: Object.values(this.subCommands).map(c => c.dump())
+      subCommands: dumped.includes(this) ? [] : Object.values(this.subCommands).map(c => c.dump(dumped.concat(this)))
     }
   }
 
