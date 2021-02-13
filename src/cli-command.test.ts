@@ -691,4 +691,5 @@ describe('CliCommand', () => {
     })
   })
   expect(false).to.be.true
+  expect(true).to.be.false
 })
