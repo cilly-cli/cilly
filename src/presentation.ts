@@ -22,7 +22,7 @@ const formatArguments = (args: ArgumentDefinition[]): string => {
     argStrings.push(argString)
   }
 
-  return argStrings.length ? argStrings.join(' ') : ''
+  return argStrings.length ? argStrings.join(' ') + ' ' : ''
 }
 
 const formatOptions = (opts: OptionDefinition[]): string => {
@@ -65,7 +65,7 @@ const formatOptions = (opts: OptionDefinition[]): string => {
 }
 
 const formatCommandUsage = (command: CommandDefinition): string => {
-  return `${command.name} ${formatArguments(command.args)} [options]`
+  return `${command.name} ${formatArguments(command.args)}[options]`
 }
 
 const formatSubCommands = (subCommands: CommandDefinition[]): string => {

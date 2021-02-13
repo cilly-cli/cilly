@@ -100,7 +100,7 @@ export class CliCommand {
     this.inheritOpts = opts.inheritOpts ?? true
     this.consumeUnknownOpts = opts.consumeUnknownOpts ?? false
     this.helpHandler = showHelp
-    this.withOptions([{
+    this.withOptions({
       name: ['-h', '--help'],
       description: 'Display help for command',
       hook: (value): void => {
@@ -109,7 +109,7 @@ export class CliCommand {
           process.exit(0)
         }
       }
-    }])
+    })
   }
 
   public withDescription(description: string): CliCommand {
@@ -117,7 +117,7 @@ export class CliCommand {
     return this
   }
 
-  public withArguments(args: Argument[]): CliCommand {
+  public withArguments(...args: Argument[]): CliCommand {
     for (const arg of args) {
       this.checkArgument(arg)
       if (this.args.some(a => a.name == arg.name)) {
@@ -130,7 +130,7 @@ export class CliCommand {
     return this
   }
 
-  public withOptions(options: Option[]): CliCommand {
+  public withOptions(...options: Option[]): CliCommand {
     for (const option of options) {
       this.checkOption(option)
       const name = this.getName(option)
@@ -153,7 +153,7 @@ export class CliCommand {
     return this
   }
 
-  public withSubCommands(commands: CliCommand[]): CliCommand {
+  public withSubCommands(...commands: CliCommand[]): CliCommand {
     for (const command of commands) {
       this.checkSubCommand(command)
       if (command.inheritOpts) {

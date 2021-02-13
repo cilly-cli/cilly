@@ -21,7 +21,7 @@ describe('CliCommand', () => {
     it('should invoke the appropriate (sub)command handler', async () => {
       const handler = spy(() => { null })
       const otherHandler = spy(() => { null })
-      const cmd = new CliCommand('test').withHandler(handler).withSubCommands([new CliCommand('hello').withHandler(otherHandler)])
+      const cmd = new CliCommand('test').withHandler(handler).withSubCommands(new CliCommand('hello').withHandler(otherHandler))
 
       await cmd.process(['test'])
       expect(handler.called).to.be.true
@@ -31,8 +31,8 @@ describe('CliCommand', () => {
       const hook = spy(() => { null })
       const otherHook = spy(() => { null })
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'arg', hook: hook }])
-        .withOptions([{ name: ['-v', '--verbose'], hook: otherHook }])
+        .withArguments({ name: 'arg', hook: hook })
+        .withOptions({ name: ['-v', '--verbose'], hook: otherHook })
         .withHandler(() => { null })
 
       await cmd.process(['test'])
@@ -43,8 +43,8 @@ describe('CliCommand', () => {
       const validator = spy(() => true)
       const otherValidator = spy(() => true)
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'arg', validator: validator }])
-        .withOptions([{ name: ['-v', '--verbose'], validator: otherValidator }])
+        .withArguments({ name: 'arg', validator: validator })
+        .withOptions({ name: ['-v', '--verbose'], validator: otherValidator })
         .withHandler(() => { null })
 
       await cmd.process(['test'])
@@ -54,7 +54,7 @@ describe('CliCommand', () => {
     it('should throw an error if validation fails', async () => {
       const validator = spy(() => false)
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'arg', validator: validator }])
+        .withArguments({ name: 'arg', validator: validator })
         .withHandler(() => { null })
 
       await expect(cmd.process(['test', 'hi'])).to.eventually.be.rejectedWith(CillyException)
@@ -65,7 +65,7 @@ describe('CliCommand', () => {
       }
 
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'arg', hook: hook }, { name: 'ot' }])
+        .withArguments({ name: 'arg', hook: hook }, { name: 'ot' })
         .withHandler((args) => {
           expect(args.arg).to.equal(2)
           expect(args.ot).to.equal('general')
@@ -79,7 +79,7 @@ describe('CliCommand', () => {
       }
 
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'arg', hook: hook, validator: validator }, { name: 'ot' }])
+        .withArguments({ name: 'arg', hook: hook, validator: validator }, { name: 'ot' })
         .withHandler(() => { null })
 
       await expect(cmd.process(['test', 'hello', 'general'], { stripExecScript: false }))
@@ -98,8 +98,8 @@ describe('CliCommand', () => {
       const second = new CliCommand('second')
       const third = new CliCommand('third')
 
-      first.withSubCommands([second])
-      second.withSubCommands([third, first])
+      first.withSubCommands(second)
+      second.withSubCommands(third, first)
 
       const checkForMissingCommandHandlers = (first as any).checkForMissingCommandHandlers.bind(first)
       expect(() => checkForMissingCommandHandlers()).to.throw(CillyException)
@@ -125,8 +125,8 @@ describe('CliCommand', () => {
       const third = new CliCommand('third')
       const checkForMissingCommandHandlers = (first as any).checkForMissingCommandHandlers.bind(first)
 
-      first.withSubCommands([second])
-      second.withSubCommands([third])
+      first.withSubCommands(second)
+      second.withSubCommands(third)
 
       first.handler = (): void => { null }
       second.handler = (): void => { null }
@@ -141,8 +141,8 @@ describe('CliCommand', () => {
       const second = new CliCommand('second')
       const third = new CliCommand('third')
 
-      first.withSubCommands([second])
-      second.withSubCommands([third, first])
+      first.withSubCommands(second)
+      second.withSubCommands(third, first)
 
       const getCommand = (first as any).getCommand.bind(first)
       expect(getCommand(['first'])).to.eql(first)
@@ -157,7 +157,7 @@ describe('CliCommand', () => {
   describe('parse()', () => {
     it('should correctly negate negatable flags', () => {
       const cmd = new CliCommand('parent')
-        .withOptions([{ name: ['-v', '--verbose'], defaultValue: true, negatable: true }])
+        .withOptions({ name: ['-v', '--verbose'], defaultValue: true, negatable: true })
       const parsed = cmd.parse(['parent', '--no-verbose'], { stripExecScript: false })
       expect(parsed).to.eql({
         args: {},
@@ -170,14 +170,14 @@ describe('CliCommand', () => {
     })
     it('should parse input as defined by subcommand when invoked', () => {
       const cmd = new CliCommand('parent')
-        .withOptions([{ name: ['-v', '--verbose'], defaultValue: false }])
-        .withSubCommands([
+        .withOptions({ name: ['-v', '--verbose'], defaultValue: false })
+        .withSubCommands(
           new CliCommand('child')
-            .withOptions([
+            .withOptions(
               { name: ['-v', '--verbose'], defaultValue: true },
               { name: ['-f', '--files'], args: [{ name: 'files', variadic: true }] }
-            ])
-        ])
+            )
+        )
 
       const parsed = cmd.parse(['parent', 'child', '-f', '.gitignore', '.eslintrc.json'], { stripExecScript: false })
       expect(parsed).to.eql({
@@ -193,7 +193,7 @@ describe('CliCommand', () => {
   })
   describe('parse()', () => {
     it('should throw an error when duplicate options are passed', () => {
-      const cmd = new CliCommand('test').withOptions([{ name: ['-s', '--same'] }])
+      const cmd = new CliCommand('test').withOptions({ name: ['-s', '--same'] })
       const throwing = (): void => { cmd.parse(['test', '--same', '--same'], { stripExecScript: false }) }
       expect(throwing).to.throw(CillyException)
       try {
@@ -204,7 +204,7 @@ describe('CliCommand', () => {
     })
     it('should throw an error when an unknown option is passed', () => {
       const throwing = (): void => {
-        const cmd = new CliCommand('test').withOptions([{ name: ['-s', '--same'] }])
+        const cmd = new CliCommand('test').withOptions({ name: ['-s', '--same'] })
         cmd.parse(['test', '--same', '--not-same'], { stripExecScript: false })
       }
       expect(throwing).to.throw(CillyException)
@@ -216,7 +216,7 @@ describe('CliCommand', () => {
     })
     it('should put all extra arguments into extra', () => {
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'arg' }])
+        .withArguments({ name: 'arg' })
 
       const parsed = cmd.parse(['test', 'hello', 'this', 'should', 'go', 'into', 'extra'], { stripExecScript: false })
       expect(parsed).to.eql({
@@ -231,7 +231,7 @@ describe('CliCommand', () => {
     })
     it('should put all extra options into extra if opts.consumeUnknownOptions is true', () => {
       const cmd = new CliCommand('test', { consumeUnknownOpts: true })
-        .withArguments([{ name: 'arg' }])
+        .withArguments({ name: 'arg' })
 
       const parsed = cmd.parse(['test', 'hello', '--go'], { stripExecScript: false })
       expect(parsed).to.eql({
@@ -246,7 +246,7 @@ describe('CliCommand', () => {
     })
     it('should put all extra options and arguments into extra if opts.consumeUnknownOptions is true', () => {
       const cmd = new CliCommand('test', { consumeUnknownOpts: true })
-        .withArguments([{ name: 'arg' }])
+        .withArguments({ name: 'arg' })
 
       const parsed = cmd.parse(['test', 'hello', 'this', 'should', '--go', 'into', 'extra'], { stripExecScript: false })
       expect(parsed).to.eql({
@@ -261,8 +261,8 @@ describe('CliCommand', () => {
     })
     it('should generate the appropriate output (1)', () => {
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'first', required: true }, { name: 'second', required: false }])
-        .withOptions([
+        .withArguments({ name: 'first', required: true }, { name: 'second', required: false })
+        .withOptions(
           { name: ['-d', '--dir'], args: [{ name: 'dir' }], defaultValue: './', required: true },
           {
             name: ['-e', '--extra'], args: [
@@ -270,7 +270,7 @@ describe('CliCommand', () => {
               { name: 'second', defaultValue: 'kenobi' }
             ]
           }
-        ])
+        )
 
       const parsed = cmd.parse(['test', 'hello', 'there', '--dir', '/usr/bin/', '-e', 'general'], { stripExecScript: false })
       expect(parsed).to.eql({
@@ -291,11 +291,11 @@ describe('CliCommand', () => {
     })
     it('should generate the appropriate output (2)', () => {
       const cmd = new CliCommand('test')
-        .withArguments([{ name: 'first', required: true, variadic: true }])
-        .withOptions([
+        .withArguments({ name: 'first', required: true, variadic: true })
+        .withOptions(
           { name: ['-m', '--many'], args: [{ name: 'things', variadic: true }] },
           { name: ['-mo', '--many-optional'], args: [{ name: 'things', variadic: true, required: false }], defaultValue: [1, 2, 3] }
-        ])
+        )
 
       const parsed = cmd.parse(['test', 'one', 'two', 'three', '-m', 'many-one', 'many two'], { stripExecScript: false })
       expect(parsed).to.eql({
@@ -326,8 +326,8 @@ describe('CliCommand', () => {
   })
   describe('getName()', () => {
     const cli = new CliCommand('test')
-      .withArguments([{ name: 'my-arg' }])
-      .withOptions([{ name: ['-v', '--verbose'] }, { name: ['-m', '--my-option'] }])
+      .withArguments({ name: 'my-arg' })
+      .withOptions({ name: ['-v', '--verbose'] }, { name: ['-m', '--my-option'] })
 
     const getName = (cli as any).getName.bind(cli)
     it('should directly parse long option flag definitions', () => {
@@ -359,7 +359,7 @@ describe('CliCommand', () => {
   })
   describe('checkSubCommand', () => {
     it('should throw an exception if the command has arguments', () => {
-      const cli = new CliCommand('test').withArguments([{ name: 'test' }])
+      const cli = new CliCommand('test').withArguments({ name: 'test' })
       const checkSubCommand = (cli as any).checkSubCommand.bind(cli)
       const throwing = (): void => {
         checkSubCommand(new CliCommand('something'))
@@ -380,7 +380,7 @@ describe('CliCommand', () => {
   })
   describe('checkArgument', () => {
     it('should throw an exception if the command has subcommands', () => {
-      const cli = new CliCommand('test').withSubCommands([new CliCommand('asd')])
+      const cli = new CliCommand('test').withSubCommands(new CliCommand('asd'))
       const checkArgument = (cli as any).checkArgument.bind(cli)
 
       const throwing = (): void => {
@@ -457,7 +457,7 @@ describe('CliCommand', () => {
   })
   describe('handleUnassignedArguments()', () => {
     it('should throw an exception if there are any required arguments', () => {
-      const cli = new CliCommand('test').withArguments([{ name: 'arg', required: true }])
+      const cli = new CliCommand('test').withArguments({ name: 'arg', required: true })
       const handleUnassignedArguments = (cli as any).handleUnassignedArguments.bind(cli)
       const throwing = (): void => handleUnassignedArguments()
       expect(throwing).to.throw(CillyException)
@@ -468,7 +468,7 @@ describe('CliCommand', () => {
       }
     })
     it('should assign default values to all optional, unassigned arguments', () => {
-      const cli = new CliCommand('test').withArguments([{ name: 'arg', required: false }, { name: 'my-arg', required: false, defaultValue: 'hello' }])
+      const cli = new CliCommand('test').withArguments({ name: 'arg', required: false }, { name: 'my-arg', required: false, defaultValue: 'hello' })
       const handleUnassignedArguments = (cli as any).handleUnassignedArguments.bind(cli)
       handleUnassignedArguments()
       const args = (cli as any).parsed.args
@@ -480,7 +480,7 @@ describe('CliCommand', () => {
   })
   describe('handleUnassignedOptions()', () => {
     it('should throw an exception if there are any unassigned required options', () => {
-      const cli = new CliCommand('test').withOptions([{ name: ['-s', '--same'], required: true }])
+      const cli = new CliCommand('test').withOptions({ name: ['-s', '--same'], required: true })
       const handleUnassignedOptions = (cli as any).handleUnassignedOptions.bind(cli)
       const throwing = (): void => handleUnassignedOptions()
       expect(throwing).to.throw(CillyException)
@@ -491,7 +491,7 @@ describe('CliCommand', () => {
       }
     })
     it('should assign default values to all optional, unassigned options', () => {
-      const cli = new CliCommand('test').withOptions([{ name: ['-s', '--same'], defaultValue: [1, 2, 3] }])
+      const cli = new CliCommand('test').withOptions({ name: ['-s', '--same'], defaultValue: [1, 2, 3] })
       const handleUnassignedOptions = (cli as any).handleUnassignedOptions.bind(cli)
       handleUnassignedOptions()
       const opts = (cli as any).parsed.opts
@@ -510,10 +510,10 @@ describe('CliCommand', () => {
     it('should throw an exception when the name already exists', () => {
       const throwing = (): void => {
         new CliCommand('test')
-          .withArguments([
+          .withArguments(
             { name: 'my-arg' },
             { name: 'my-arg' }
-          ])
+          )
       }
       expect(throwing).to.throw(CillyException)
       try {
@@ -527,10 +527,10 @@ describe('CliCommand', () => {
     it('should throw an exception when the short name already exists', () => {
       const throwing = (): void => {
         new CliCommand('test')
-          .withOptions([
+          .withOptions(
             { name: ['-s', '--same'] },
             { name: ['-s', '--not-same'] }
-          ])
+          )
       }
 
       expect(throwing).to.throw(CillyException)
@@ -543,10 +543,10 @@ describe('CliCommand', () => {
     it('should throw an exception when the long name already exists', () => {
       const throwing = (): void => {
         new CliCommand('test')
-          .withOptions([
+          .withOptions(
             { name: ['-s', '--same'] },
             { name: ['-n', '--same'] }
-          ])
+          )
       }
 
       expect(throwing).to.throw(CillyException)
@@ -559,12 +559,12 @@ describe('CliCommand', () => {
   })
   describe('withSubCommands()', () => {
     it('should let subcommand inherit all options if inheritOptions is true', () => {
-      const parent = new CliCommand('parent').withOptions([
+      const parent = new CliCommand('parent').withOptions(
         { name: ['-s', '--short'] },
         { name: ['-n', '--nada'] }
-      ])
-      const child = new CliCommand('child', { inheritOpts: true }).withOptions([{ name: ['-a', '--ada'] }])
-      parent.withSubCommands([child])
+      )
+      const child = new CliCommand('child', { inheritOpts: true }).withOptions({ name: ['-a', '--ada'] })
+      parent.withSubCommands(child)
       for (const opt of Object.keys(parent.opts)) {
         expect(Object.keys(child.opts)).to.contain(opt)
       }
@@ -576,7 +576,7 @@ describe('CliCommand', () => {
       const parent = new CliCommand('parent')
       const first = new CliCommand('first')
       const alsoFirst = new CliCommand('first')
-      const throwing = (): void => { parent.withSubCommands([first, alsoFirst]) }
+      const throwing = (): void => { parent.withSubCommands(first, alsoFirst) }
       expect(throwing).to.throw(CillyException)
       try {
         throwing()
@@ -589,12 +589,12 @@ describe('CliCommand', () => {
     it('should generate a correct dump for nested subcommands', () => {
       const parent = new CliCommand('get')
         .withDescription('This is a get')
-        .withOptions([{ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }] }])
-        .withSubCommands([
+        .withOptions({ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }] })
+        .withSubCommands(
           new CliCommand('download', { inheritOpts: true })
-            .withOptions([{ name: ['-d', '--dry-run'], required: false, defaultValue: true }])
-            .withArguments([{ name: 'path', required: true }])
-        ])
+            .withOptions({ name: ['-d', '--dry-run'], required: false, defaultValue: true })
+            .withArguments({ name: 'path', required: true })
+        )
 
       expect(parent.dump()).to.eql({
         name: 'get',
