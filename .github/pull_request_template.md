@@ -1,4 +1,3 @@
-<!--- Thank you inversify-express-utils for a great template! -->
 <!--- Put a summary of your changes in the title -->
 
 ## Description
@@ -28,3 +27,5 @@
 - [ ] I have read the contribution guidelines document.
 - [ ] I have added tests to cover my changes.
 - [ ] All new and existing tests passed.
+
+<!--- Thank you inversify-express-utils for a great template! -->
