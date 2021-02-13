@@ -66,24 +66,23 @@ export type CommandDefinition = {
   args: ArgumentDefinition[],
   subCommands: CommandDefinition[]
 }
-
 export class CliCommand {
 
   name: string
   handler?: CommandHandler
-  helpHandler: (command: CommandDefinition) => void
   description: string
-  inheritOpts?: boolean
-  consumeUnknownOpts?: boolean
 
-  args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
-  opts: { [name: string]: Option } = {}
-  subCommands: { [name: string]: CliCommand } = {}
-  shortNameMap: { [shortName: string]: string } = {}
-  argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
-  negatableOptsMap: { [name: string]: Option } = {}  // Maps --no-* flags to negatable options
+  private helpHandler: (command: CommandDefinition) => void
+  private inheritOpts?: boolean
+  private consumeUnknownOpts?: boolean
+  private args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
+  private opts: { [name: string]: Option } = {}
+  private subCommands: { [name: string]: CliCommand } = {}
+  private shortNameMap: { [shortName: string]: string } = {}
+  private argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
+  private negatableOptsMap: { [name: string]: Option } = {}  // Maps --no-* flags to negatable options
 
-  parsed: {
+  private parsed: {
     args: ParsedArguments
     opts: ParsedOptions
     extra: string[]
@@ -186,27 +185,6 @@ export class CliCommand {
     }
   }
 
-  private dumpOption(o: Option): OptionDefinition {
-    return {
-      name: o.name,
-      description: o.description,
-      required: o.required,
-      negatable: o.negatable,
-      args: o.args ? o.args.map(a => this.dumpArgument(a)) : [],
-      defaultValue: o.defaultValue
-    }
-  }
-
-  private dumpArgument(a: Argument): ArgumentDefinition {
-    return {
-      name: a.name,
-      description: a.description,
-      required: a.required,
-      defaultValue: a.defaultValue,
-      variadic: a.variadic
-    }
-  }
-
   /**
    * Parses the process arguments and generates args, opts, and extra objects.
    * Does not invoke command handlers and does not invoke hooks or validators.
@@ -274,6 +252,27 @@ export class CliCommand {
     // Run handler
     if (command.handler !== undefined) {
       return command.handler(parsed.args, parsed.opts, parsed.extra)
+    }
+  }
+
+  private dumpOption(o: Option): OptionDefinition {
+    return {
+      name: o.name,
+      description: o.description,
+      required: o.required,
+      negatable: o.negatable,
+      args: o.args ? o.args.map(a => this.dumpArgument(a)) : [],
+      defaultValue: o.defaultValue
+    }
+  }
+
+  private dumpArgument(a: Argument): ArgumentDefinition {
+    return {
+      name: a.name,
+      description: a.description,
+      required: a.required,
+      defaultValue: a.defaultValue,
+      variadic: a.variadic
     }
   }
 
