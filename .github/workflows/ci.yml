@@ -49,7 +49,7 @@ jobs:
           label: coverage
           labelColor: "#24292E"  # Dark grey
           message: ${{ env.COVERAGE }}%
-          color: "#28A745"  # Green
+          color: "#34D058"  # Green
           namedLogo: mocha
-          logoColor: "#444D56"  # Grey
+          logoColor: "#959DA5"  # Grey
 
