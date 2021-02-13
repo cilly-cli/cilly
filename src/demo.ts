@@ -6,13 +6,13 @@ const cli = new CliCommand('test-cli')
   .withDescription('A test CLI that we can run from the command line.')
   .withOptions([
     { name: ['-v', '--verbose'], defaultValue: true },
-    { name: ['-f', '--files'], args: [{ name: 'files', variadic: true }], defaultValue: [] }
+    { name: ['-f', '--files'], args: [{ name: 'dest', required: true }, { name: 'files', variadic: true }] }
   ])
   .withHandler(() => { null })
   .withSubCommands([
     new CliCommand('hello')
       .withDescription('Just say hello')
-      .withArguments([{ name: 'nothing' }])
+      .withArguments([{ name: 'an-arg', required: true }])
       .withOptions([{ name: ['-hi', '--hello'], description: 'This is in the subcommand' }])
       .withHandler(() => { null })
   ])

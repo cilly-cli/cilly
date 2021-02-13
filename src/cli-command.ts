@@ -266,6 +266,8 @@ export class CliCommand {
     await this.runHooks(parsed, 'opts', this.opts)
 
     // Run validators
+    await this.runValidators(parsed, 'args', this.argsMap)
+    await this.runValidators(parsed, 'opts', this.opts)
 
     // Run handler
     if (command.handler !== undefined) {
@@ -296,6 +298,15 @@ export class CliCommand {
         }
 
         await definition.hook(value, parsed, assign)
+      }
+    }
+  }
+
+  private async runValidators(parsed: ParsedInput, type: 'args' | 'opts', definitions: { [name: string]: Option | Argument }): Promise<void> {
+    for (const [name, definition] of Object.entries(definitions)) {
+      if (definition.validator) {
+        const value = parsed[type][name]
+        await this.validate(value, parsed, definition)
       }
     }
   }

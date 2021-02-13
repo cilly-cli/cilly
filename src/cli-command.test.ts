@@ -39,11 +39,25 @@ describe('CliCommand', () => {
       expect(hook.called).to.be.true
       expect(otherHook.called).to.be.true
     })
-    it('should invoke the appropriate validators', () => {
-      expect(false)
+    it('should invoke the appropriate validators', async () => {
+      const validator = spy(() => true)
+      const otherValidator = spy(() => true)
+      const cmd = new CliCommand('test')
+        .withArguments([{ name: 'arg', validator: validator }])
+        .withOptions([{ name: ['-v', '--verbose'], validator: otherValidator }])
+        .withHandler(() => { null })
+
+      await cmd.process(['test'])
+      expect(validator.called).to.be.true
+      expect(otherValidator.called).to.be.true
     })
-    it('should throw an error if validation fails', () => {
-      expect(false)
+    it('should throw an error if validation fails', async () => {
+      const validator = spy(() => false)
+      const cmd = new CliCommand('test')
+        .withArguments([{ name: 'arg', validator: validator }])
+        .withHandler(() => { null })
+
+      await expect(cmd.process(['test', 'hi'])).to.eventually.be.rejectedWith(CillyException)
     })
     it('should alter the parsed input if a hook.assign() is called', async () => {
       const hook: Hook = async (value, parsed, assign) => {
