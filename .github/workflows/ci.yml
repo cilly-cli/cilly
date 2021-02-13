@@ -28,13 +28,17 @@ jobs:
 
       - name: Get code coverage
         run: |
+          # Set the BRANCH_NAME to use as the badge file name later
           REF=${{ github.ref }}
           echo "github.ref: $REF"
-          COVERAGE=$(python3 -c "import json;print(json.load(open('coverage/coverage-summary.json'))['total']['lines']['pct'])", end='')
           IFS='/' read -ra PATHS <<< "$REF"
           BRANCH_NAME="${PATHS[1]}_${PATHS[2]}"
           echo $BRANCH_NAME
           echo "BRANCH=$(echo ${BRANCH_NAME})" >> $GITHUB_ENV
+          
+          # Get the code coverage, set as Github env var
+          COVERAGE=$(python3 -c "import json;print(json.load(open('coverage/coverage-summary.json'))['total']['lines']['pct'])", end='')
+          echo "COVERAGE=$(echo ${COVERAGE})" >> $GITHUB_ENV
 
       - name: Create code coverage badge
         uses: schneegans/dynamic-badges-action@v1.0.0
