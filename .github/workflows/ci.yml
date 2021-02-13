@@ -35,7 +35,6 @@ jobs:
           BRANCH_NAME="${PATHS[1]}_${PATHS[2]}"
           echo $BRANCH_NAME
           echo "BRANCH=$(echo ${BRANCH_NAME})" >> $GITHUB_ENV
-          name: Create the Badge
 
       - name: Create code coverage badge
         uses: schneegans/dynamic-badges-action@v1.0.0
