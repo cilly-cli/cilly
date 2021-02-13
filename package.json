@@ -7,6 +7,10 @@
     "cilly": "ts-node src/app.ts",
     "test": "nyc mocha -r ts-node/register 'src/**/*.test.ts'"
   },
+  "nyc": {
+    "include": "src",
+    "exclude": "src/presentation.ts" 
+  },
   "repository": {
     "type": "git",
     "url": "cilly"
