@@ -11,6 +11,6 @@
     "esModuleInterop": true,
     "strictNullChecks": true
   },
-  "include": ["src/**/*.ts", "src/demo.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }

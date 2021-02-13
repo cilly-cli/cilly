@@ -5,7 +5,11 @@
   "main": "app.js",
   "scripts": {
     "cilly": "ts-node src/app.ts",
-    "test": "nyc mocha -r ts-node/register 'src/**/*.test.ts'"
+    "test": "nyc --reporter=json-summary --reporter=text mocha -r ts-node/register 'src/**/*.test.ts'"
+  },
+  "nyc": {
+    "include": "src",
+    "exclude": "src/presentation.ts" 
   },
   "repository": {
     "type": "git",
