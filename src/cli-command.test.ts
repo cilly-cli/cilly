@@ -690,4 +690,5 @@ describe('CliCommand', () => {
       await expect(cmd.process(['test', '--help'], { stripExecScript: false })).to.eventually.be.rejectedWith(CillyException)
     })
   })
+  expect(false).to.be.true
 })
