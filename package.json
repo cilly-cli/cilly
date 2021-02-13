@@ -1,15 +1,17 @@
 {
   "name": "cilly",
   "version": "1.0.0",
-  "description": "The last library you'll ever need for building CLI tools with great UX in Node.js",
-  "main": "app.js",
+  "description": "The last library you'll ever need for building intuitive, robust and flexible CLI tools with Node.js and TypeScript.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "cilly": "ts-node src/app.ts",
-    "test": "nyc --reporter=json-summary --reporter=text mocha -r ts-node/register 'src/**/*.test.ts'"
+    "test": "nyc --reporter=json-summary --reporter=text mocha -r ts-node/register 'src/**/*.test.ts'",
+    "build": "tsc",
+    "prepublish": "npm run build"
   },
   "nyc": {
     "include": "src",
-    "exclude": "src/presentation.ts" 
+    "exclude": "src/presentation.ts"
   },
   "repository": {
     "type": "git",
@@ -21,7 +23,7 @@
     "typescript"
   ],
   "author": "Anders Brams",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/chai": "^4.2.14",
     "@types/chai-as-promised": "^7.1.3",

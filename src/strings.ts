@@ -1,20 +1,86 @@
+import { CommandDefinition } from './cli-command'
+import { CillyException } from './exceptions/cilly-exception'
 
-export const STRINGS = {
-  UNKNOWN_OPTION_NAME: (name: string): string => `Unkown option name: ${name}`,
-  INVALID_N_OPTION_NAMES: (names: string[]): string => `Options must be provided exactly two names (short and long), but got ${JSON.stringify(names)}`,
-  INVALID_SHORT_OPTION_NAME: (name: string): string => `Invalid short option name: ${name}`,
-  INVALID_LONG_OPTION_NAME: (name: string): string => `Invalid long option name: ${name}`,
-  INVALID_COMMAND_NAME: (name: string): string => `Invalid command name: ${name}`,
-  INVALID_ARGUMENT_NAME: (name: string): string => `Invalid argument name: ${name}`,
-  EXPECTED_BUT_GOT: (a: string, b: string): string => `Expected ${a} but got ${b}`,
-  NO_COMMAND_HANDLER: (command: string): string => `Cannot process arguments; no handler is defined for command "${command}".`,
-  DUPLICATE_ARG_NAME: (name: string): string => `The argument "${name}" is already a registered argument name.`,
-  DUPLICATE_OPT_NAME: (name: string): string => `The option "${name}" is already a registered option name.`,
-  DUPLICATE_COMMAND_NAME: (subCommandName: string, parentCommandName: string): string => `The command name "${subCommandName}" is already a registered subcommand for. ${parentCommandName}`,
-  NO_ARGS_AND_SUBCOMMANDS: (command: string): string => `Command "${command}": a command can only register arguments or subcommands, not both.`,
-  VALIDATION_ERROR: (arg: string, value: any, error: string | boolean): string => {
-    let msg = `Invalid value ${value} for ${arg}`
-    msg += typeof error === 'string' ? `: ${error}` : '.'
-    return msg
+export class UnknownOptionException extends CillyException {
+  constructor(public option: string, public command: CommandDefinition) {
+    super(`Unkown option name: ${option}`)
+  }
+}
+export class UnknownSubcommandException extends CillyException {
+  constructor(public subCommand: string, command: CommandDefinition) {
+    super(`Command ${command.name} has no subcommand "${subCommand}"`)
+  }
+}
+
+export class InvalidNumOptionNamesException extends CillyException {
+  constructor(public names: string[]) {
+    super(`Options must be provided exactly two names (short and long), but got ${JSON.stringify(names)}`)
+  }
+}
+
+export class InvalidShortOptionNameException extends CillyException {
+  constructor(public name: string) {
+    super(`Invalid short option name: ${name}`)
+  }
+}
+
+export class InvalidLongOptionNameException extends CillyException {
+  constructor(public name: string) {
+    super(`Invalid long option name: ${name}`)
+  }
+}
+
+export class InvalidCommandNameException extends CillyException {
+  constructor(public name: string) {
+    super(`Invalid command name: ${name}`)
+  }
+}
+
+export class InvalidArgumentNameException extends CillyException {
+  constructor(public name: string) {
+    super(`Invalid argument name: ${name}`)
+  }
+}
+
+export class UnexpectedValueException extends CillyException {
+  constructor(public expected: string, public got: string) {
+    super(`Expected ${expected} but got ${got}`)
+  }
+}
+
+export class NoCommandHandlerException extends CillyException {
+  constructor(public command: CommandDefinition) {
+    super(`Cannot process arguments; no handler is defined for command "${command.name}".`)
+  }
+}
+
+export class DuplicateArgumentException extends CillyException {
+  constructor(public arg: string, public command: CommandDefinition) {
+    super(`The argument "${arg}" is already a registered argument name.`)
+  }
+}
+
+export class DuplicateOptionException extends CillyException {
+  constructor(public option: string, public command: CommandDefinition) {
+    super(`The option "${option}" is already a registered option name.`)
+  }
+}
+
+export class DuplicateCommandNameException extends CillyException {
+  constructor(public subCommand: string, command: CommandDefinition) {
+    super(`The command name "${subCommand}" is already a registered subcommand for ${command.name}`)
+  }
+}
+
+export class NoArgsAndSubCommandsException extends CillyException {
+  constructor(public command: CommandDefinition) {
+    super(`Command "${command.name}": a command can only register arguments or subcommands, not both.`)
+  }
+}
+
+export class ValidationError extends CillyException {
+  constructor(public arg: string, public value: any, public error: string | boolean) {
+    super(`Invalid value ${value} for ${arg}`)
+    this.message += typeof error === 'string' ? `: ${error}` : '.'
   }
 }
