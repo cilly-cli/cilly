@@ -1,4 +1,4 @@
-import { CillyException } from '../exceptions/cilly-exception'
+import { CillyException } from '../exceptions'
 
 const VARIADIC_SYNTAX = /(\.{3})/
 const WHITESPACE = /(\s)*/
