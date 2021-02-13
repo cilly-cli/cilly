@@ -493,12 +493,12 @@ describe('CliCommand', () => {
       )
       const child = new CliCommand('child', { inheritOpts: true }).withOptions({ name: ['-a', '--ada'] })
       parent.withSubCommands(child)
-      for (const opt of Object.keys(parent.opts)) {
-        expect(Object.keys(child.opts)).to.contain(opt)
+      for (const opt of Object.keys((parent as any).opts)) {
+        expect(Object.keys((child as any).opts)).to.contain(opt)
       }
-      expect(child.opts).to.haveOwnProperty('ada')
-      expect(child.opts).to.haveOwnProperty('short')
-      expect(child.opts).to.haveOwnProperty('nada')
+      expect((child as any).opts).to.haveOwnProperty('ada')
+      expect((child as any).opts).to.haveOwnProperty('short')
+      expect((child as any).opts).to.haveOwnProperty('nada')
     })
     it('should throw on duplicate subcommands', () => {
       const parent = new CliCommand('parent')
