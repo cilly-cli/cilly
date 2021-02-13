@@ -2,7 +2,7 @@
 <!--- Put a summary of your changes in the title -->
 
 <!-- Change the ## to your pull request number -->
-![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Minibrams/1708995a4933a08f4838df0243926653/raw/cilly-cli/cilly__pull_##.json)
+![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Minibrams/1708995a4933a08f4838df0243926653/raw/cilly__pull_##.json)
 
 ## Description
 <!--- Describe your changes in detail -->
