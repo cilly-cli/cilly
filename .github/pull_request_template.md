@@ -1,8 +1,8 @@
 
 <!--- Put a summary of your changes in the title -->
 
-<!-- Change the ## to your pull request number -->
-![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Minibrams/1708995a4933a08f4838df0243926653/raw/cilly__pull_##.json)
+To get the code coverage, change `<BRANCH_NAME>` to the `-`-separated branch name, e.g. `feature/added-hooks` --> `feature-added-hooks`
+![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Minibrams/1708995a4933a08f4838df0243926653/raw/cilly__<BRANCH_NAME>.json)
 
 ## Description
 <!--- Describe your changes in detail -->
