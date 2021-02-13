@@ -2,8 +2,7 @@ import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { spy, stub } from 'sinon'
 import { Argument, CliCommand, Hook, Option, Validator } from './cli-command'
-import { CillyException } from './exceptions/cilly-exception'
-import { DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, UnexpectedValueException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './strings'
+import { CillyException, DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, UnexpectedValueException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
 
 chai.use(chaiAsPromised)
 

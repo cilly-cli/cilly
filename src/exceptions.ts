@@ -1,5 +1,10 @@
 import { CommandDefinition } from './cli-command'
-import { CillyException } from './exceptions/cilly-exception'
+
+export class CillyException extends Error {
+  constructor(public msg: string) {
+    super(msg)
+  }
+}
 
 export class UnknownOptionException extends CillyException {
   constructor(public option: string, public command: CommandDefinition) {
