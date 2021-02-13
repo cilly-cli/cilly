@@ -180,7 +180,9 @@ export class CliCommand {
       description: this.description,
       opts: Object.values(this.opts).map(o => this.dumpOption(o)),
       args: Object.values(this.argsMap).map(a => this.dumpArgument(a)),
-      subCommands: dumped.includes(this) ? [] : Object.values(this.subCommands).map(c => c.dump(dumped.concat(this)))
+      subCommands: dumped.includes(this)
+        ? []  // Prevent endless recursion
+        : Object.values(this.subCommands).map(c => c.dump(dumped.concat(this)))
     }
   }
 
