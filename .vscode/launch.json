@@ -4,13 +4,13 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Launch app.ts",
+      "name": "Launch demo.ts",
       "smartStep": true,
-      "program": "${workspaceFolder}/src/app.ts",
+      "program": "${workspaceFolder}/src/demo.ts",
       "preLaunchTask": "tsc: build - tsconfig.json",
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "autoAttachChildProcesses": true,
-      "args": ["hello", "--required=something", "--verbose", "--optional", "--many-optional", "asd", "-t", "firstValue"]
+      "args": ["demo", "--help"]
     },
     {
       "type": "node",

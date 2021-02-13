@@ -2,7 +2,7 @@
 
 import { CliCommand } from './cli-command'
 
-const cli = new CliCommand('test-cli')
+const cli = new CliCommand('demo')
   .withDescription('A test CLI that we can run from the command line.')
   .withOptions([
     { name: ['-v', '--verbose'], defaultValue: true },
