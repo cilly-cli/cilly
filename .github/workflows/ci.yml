@@ -25,3 +25,6 @@ jobs:
 
       - name: NPM run tests
         run: npm run test
+
+      - name: Get code coverage
+        run: python3 -c "print('Hello from Python!')"
