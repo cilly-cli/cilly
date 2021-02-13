@@ -31,8 +31,7 @@ jobs:
           # Set the BRANCH_NAME to use as the badge file name later
           REF=${{ github.ref }}
           echo "github.ref: $REF"
-          IFS='/' read -ra PATHS <<< "$REF"
-          BRANCH_NAME="${PATHS[1]}_${PATHS[2]}"
+          BRANCH_NAME=$(python3 -c "import os;print('-'.join(os.environ['REF'].split('/')[1:]), end='')")
           echo $BRANCH_NAME
           echo "BRANCH=$(echo ${BRANCH_NAME})" >> $GITHUB_ENV
           
