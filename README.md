@@ -28,6 +28,7 @@ The last library you'll ever need for building intuitive, robust and flexible CL
    - [Custom help handlers](#custom-help-handlers)
    - [Custom version handlers](#custom-version-handlers)
    - [Exception handling](#exception-handling)
+- [Contributing](#contributing)
 
 # Installation
 ```
@@ -624,3 +625,23 @@ class DuplicateCommandNameException extends CillyException
 class NoArgsAndSubCommandsException extends CillyException
 class ValidationError extends CillyException
 ```
+
+# Contributing
+Contributions are greatly appreciated and lovingly welcomed! 
+In your pull request, make sure to link the issue you're addressing. If no issue exists, make one first so we have a chance to discuss it first. 
+
+Always write tests for the functionality you add or change. See the `cli-command.test.ts` and `token-parser.test.ts` files for examples. 
+As always, use the linter provided in the project (`.eslintrc.json`) and stick to the coding style of the project. 
+
+## Setup
+1. Install everything with `npm i`
+2. Run tests with `npm test`
+
+## Debugging
+When debugging, take not that both `parse()` and `process()` strip the two first arguments off of `process.argv` when invoked.
+When you want to see how an input would be parsed, set the `raw` option in `parse()` and `process()`: 
+```typescript
+const { args, opts, extra } = new CliCommand('build').parse(['build', '--unknown-option'], { raw: true })
+```
+When `raw` is `true`, the input array is not changed. 
+The `.vscode/launch.json` file contains a configuration for debugging the test files `Mocha Tests`, allowing you to put breakpoints and step through your tests.
