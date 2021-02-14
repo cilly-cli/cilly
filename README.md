@@ -417,6 +417,33 @@ Options:
 
 
 ## Validators
+Options and arguments can be assigned validators that are called on `.process()`. 
+A validator has the following signature: 
+```
+type Validator = (value: any, parsed: { args, opts, extra }) => string | boolean | Promise<string | boolean>
+```
+
+The `value` argument is the value assigned to the option or argument. 
+
+The `parsed` argument is the result of `.parsed()`; the result of parsing the command line arguments.
+
+If a validator returns `true`, the value is interpreted as valid. 
+
+Otherwise, if the validator returns `false`, a `ValidationError` is thrown with a default error message.
+
+If the validator returns a string, that string is used as the error message.
+
+```typescript
+new CliCommand('build')
+   .withArguments({ name: 'address', validator: (value, parsed) => {
+      if (!validators.isValidAddress(value)) {
+         return `The address ${value} is not a valid address.`
+      }
+      
+      return true
+   }})
+```
+
 ## Hooks
 ### onParse()
 ### onProcess()
