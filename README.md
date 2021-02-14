@@ -6,3 +6,22 @@
 
 The last library you'll ever need for building intuitive, robust and flexible CLI tools with Node.js and TypeScript.
 
+# Installation
+```
+npm install cilly
+```
+
+# Basic usage
+
+# Documentation
+## Commands
+### Subcommands
+### Option inheritance
+## Arguments
+## Options
+## Validators
+## Hooks
+## Generating documentation
+## Custom `--help` handlers
+## Custom exception handling
+
