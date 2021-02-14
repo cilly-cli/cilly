@@ -69,9 +69,9 @@ export type CommandDefinition = {
 export class CliCommand {
 
   name: string
-  handler?: CommandHandler
   description: string
 
+  private handler?: CommandHandler
   private helpHandler: (command: CommandDefinition) => void
   private inheritOpts?: boolean
   private consumeUnknownOpts?: boolean
@@ -87,7 +87,6 @@ export class CliCommand {
     opts: ParsedOptions
     extra: string[]
   } = { args: {}, opts: {}, extra: [] }
-  extra: string[] = []
 
   constructor(name: string, opts: CliCommandOptions = { inheritOpts: false, consumeUnknownOpts: false }) {
     if (!TokenParser.isValidName(name)) {

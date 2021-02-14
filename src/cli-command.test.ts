@@ -97,8 +97,8 @@ describe('CliCommand', () => {
         expect((err as NoCommandHandlerException).command.name).to.equal(first.name)
       }
 
-      first.handler = (): void => { null }
-      second.handler = (): void => { null }
+      (first as any).handler = (): void => { null }
+      (second as any).handler = (): void => { null }
 
       expect(() => checkForMissingCommandHandlers()).to.throw(NoCommandHandlerException)
       try {
@@ -114,11 +114,11 @@ describe('CliCommand', () => {
       const checkForMissingCommandHandlers = (first as any).checkForMissingCommandHandlers.bind(first)
 
       first.withSubCommands(second)
-      second.withSubCommands(third)
+      second.withSubCommands(third);
 
-      first.handler = (): void => { null }
-      second.handler = (): void => { null }
-      third.handler = (): void => { null }
+      (first as any).handler = (): void => { null }
+      (second as any).handler = (): void => { null }
+      (third as any).handler = (): void => { null }
 
       expect(() => checkForMissingCommandHandlers()).to.not.throw()
     })
