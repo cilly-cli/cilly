@@ -10,3 +10,4 @@ README.md
 tsconfig.json
 package-lock.json
 */**/*.test.*
+*/**/*.js.map
