@@ -38,6 +38,7 @@ function buildHouse(args, opts, extra) {
    return `Built a house with ${opts.numRooms} rooms for ${opts.residents.length} people at ${args.address}, ${args.state}!` 
 }
 
+// Main command, the CLI entrypoint
 const cmd = new CliCommand('build')
    .withHandler(() => { cmd.help() })
    .withDescription('Builds houses or apartments')
@@ -48,6 +49,8 @@ const cmd = new CliCommand('build')
       args: [{ name: 'n', required: true }]
    })
    .withSubCommands(
+   
+      // Subcommand for building houses
       new CliCommand('house', { inheritOpts: true })
          .withHandler(buildHouse)
          .withDescription('Builds a house')
@@ -63,6 +66,8 @@ const cmd = new CliCommand('build')
               args: [{ name: 'residents', variadic: true }]
             }
          ),
+         
+      // Subcommand for building apartments
       new CliCommand('apartment', { inheritOpts: true })
          .withHandler(buildApartment)
          .withDescription('Builds an apartment')
@@ -89,7 +94,7 @@ Options:
   -r, --n-rooms [n]    The number of rooms (default: 1)
 
 Commands:
-  house <address> [options]
+  house <address> [state] [options]
   apartment <address> [options]
 ```
 
