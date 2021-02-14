@@ -19,8 +19,14 @@
   },
   "keywords": [
     "cli",
+    "node",
     "nodejs",
-    "typescript"
+    "javascript",
+    "typescript",
+    "command",
+    "line",
+    "interface",
+    "tool"
   ],
   "author": "Anders Brams",
   "license": "MIT",
