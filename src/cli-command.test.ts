@@ -586,6 +586,7 @@ describe('CliCommand', () => {
 
       expect(parent.dump()).to.eql({
         name: 'get',
+        version: undefined,
         description: 'This is a get',
         args: [],
         opts: [
@@ -617,6 +618,7 @@ describe('CliCommand', () => {
         subCommands: [
           {
             name: 'download',
+            version: undefined,
             description: undefined,
             args: [
               {

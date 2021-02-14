@@ -64,6 +64,7 @@ export type ArgumentDefinition = {
 
 export type CommandDefinition = {
   name: string,
+  version?: string,
   description?: string,
   opts: OptionDefinition[],
   args: ArgumentDefinition[],
@@ -208,6 +209,7 @@ export class CliCommand {
   public dump(dumped: CliCommand[] = []): CommandDefinition {
     return {
       name: this.name,
+      version: this.version,
       description: this.description,
       opts: Object.values(this.opts).map(o => this.dumpOption(o)),
       args: Object.values(this.argsMap).map(a => this.dumpArgument(a)),
