@@ -299,8 +299,52 @@ Options:
 ```
 
 ## Commands
+
 ### Subcommands
+Commands can have an arbitrary number of subcommands, allowing developers to decouple their command handling logic.
+These are registered with the `withSubCommands()` method: 
+```typescript
+new CliCommand('build')
+   .withSubCommands(
+      new CliCommand('house')...,
+      new CliCommand('apartment')...,
+   )
+```
+
+A command **cannot** have both arguments and subcommands. This is because subcommands are invoked be essentially passing command names as arguments, and there would be no good way to tell the two apart. 
+
+Subcommands are displayed in the help text: 
+```
+Usage: build [options]
+
+Options: 
+  ...
+  
+Commands: 
+  house <address> [state] [options]
+  apartment <address> [options]
+```
+
 ### Option inheritance
+Contrary to `commander.js`, subcommands can share options and arguments in the parent command(s).
+By setting the `inheritOpts` flag to true when constructing the command, the command inherits all options from the parent command:
+```typescript
+new CliCommand('build')
+   .withOptions({ name: ['-vb', '--verbose'] })
+   .withSubCommands(
+      new CliCommand('house', { inheritOpts: true })
+         .withOptions({ name: ['-r', '--rooms'] })
+   )
+```
+
+The `opts` object in the `house` command handler will contain both `verbose` and `rooms`: 
+```typescript
+opts: {
+   verbose: ...,
+   rooms: ...
+}
+```
+
 ## Validators
 ## Hooks
 ### onParse()
