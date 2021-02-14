@@ -177,6 +177,10 @@ export class CliCommand {
     return this
   }
 
+  public help(): void {
+    this.helpHandler(this.dump())
+  }
+
   public withHelpHandler(handler: (command: CommandDefinition) => void): CliCommand {
     this.helpHandler = handler
     return this

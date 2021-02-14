@@ -690,4 +690,14 @@ describe('CliCommand', () => {
       expect(handler.called).to.be.true
     })
   })
+  describe('help()', () => {
+    it('should invoke the helpHandler', () => {
+      const helpHandler = spy(() => { null })
+      const cmd = new CliCommand('test')
+        .withHelpHandler(helpHandler)
+
+      cmd.help()
+      expect(helpHandler.called).to.be.true
+    })
+  })
 })
