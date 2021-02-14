@@ -130,8 +130,10 @@ extra: []
 ```
 
 # Documentation
-The following will cover the specifics of the package, but first a definition of the fundamental concepts is in order: **arguments** and **options**.
+Before delving into the specifics of the package, a definition of the fundamental concepts is in order: **arguments** and **options**.
+
 Arguments are simply values passed directly to a command or an option. 
+
 Options are named flags, e.g. `--option` that can also be assigned their own arguments.
 
 ## Arguments
@@ -192,6 +194,110 @@ new CliCommand('download')
 ```
 
 ## Options
+Options are provided to a command with the `withOptions()` chain method. 
+The `withOptions()` method takes a list of `Option` type arguments: 
+```typescript
+type Option = {
+  name: [string, string],       // The short and long flag for the option
+  required?: boolean,           // If true, throws an error if the option is not provided
+  negatable?: boolean,          // Automatically registers a negating --no-* flag
+  args?: Argument[],            // Parses arguments as the option value instead of a boolean flag
+  defaultValue?: OptionValue,   // The default value of the option if it is not provided
+  description?: string,         // Description of the option (shown in help)  
+  onParse?: OnParseHook,        // Hook to run immediately when the option is parsed from the command line
+  onProcess?: OnProcessHook,    // Hook to run when all arguments and options have been parsed from the command line
+  validator?: Validator         // Validation function used to validate the parsed value of the option
+}
+```
+
+The option's name is provided as an array of two strings; the short and long flag name. 
+1. Short option names == argument names starting with `-`
+2. Long option names == argument names starting with `--`
+
+```typescript
+new CliCommand('build')
+   .withOptions(
+      { name: ['-r', '--rooms'] },
+      { name: ['-s', '--street-name'] }
+   )
+```
+
+### Option arguments
+Options can take arguments just like a command can. 
+In the command line, options can be assigned in two ways:
+1. With `=` assignment, e.g. `build house --rooms=4`
+2. With normal assignment, e.g. `build house --rooms 4`
+
+Here's an example of an option with three arguments - in the `help` text, this would be shown as
+```
+Options:
+  -r, --residents <owner> [...adults] [...children]
+```
+```typescript
+new CliCommand('build')
+   .withHandler((args, opts, extra) => {
+      console.log(opts)
+   })
+   .withOptions(
+      { name: ['-r', '--residents'], args: [
+         { name: 'owner', required: true }
+         { name: 'adults', variadic: true, required: false, },
+         { name: 'children', variadic: true, required: false }
+      ]}
+   )
+```
+
+The above handler would print the following: 
+```typescript
+{
+   residents: {
+      owner: ...,
+      adults: [...],
+      children: [...]
+   }
+}
+```
+
+If an option only has a single argument, that argument is then collapsed into the option value so it's simpler to access: 
+```typescript
+new CliCommand('build')
+   .withOptions(
+      { name: ['-o', '--owner'], args: [
+         { name: 'owner', required: true }
+      ]}
+   )
+```
+
+Parsing the input `build --owner=anders` (or `build --owner anders`) would produce the following `opts` object: 
+```typescript
+{
+   owner: 'anders'
+}
+```
+
+### Negating flags
+Sometimes, it's useful to allow users to explicitly negate an option flag.
+For example, in the [hooks section](#hooks) we cover how hooks can be used to prompt users for option values if they are not provided. 
+
+It's good UX to allow the user to explicitly negate the flag when they don't want it so they can avoid being prompted.
+
+To register a negating flag, simply set `negatable: true`: 
+```typescript
+new CliCommand('batman')
+   .withOptions(
+      { name: ['-p', '--parents'], negatable: true, description: 'Name of (living) parents' }
+   )
+```
+
+With this, users can pass `--no-parents` in the command line, which will set `opts.parents` to `false`. 
+This is also shown in the `help` text:
+```
+Usage: batman [options]
+
+Options:
+  -p, --parents (--no-parents)     Name of (living) parents
+```
+
 ## Commands
 ### Subcommands
 ### Option inheritance
