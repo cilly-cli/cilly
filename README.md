@@ -8,6 +8,7 @@ The last library you'll ever need for building intuitive, robust and flexible CL
 
 # Table of contents
 - [Installation](#installation)
+- [Motivation](#motivation)
 - [Basic usage](#basic-usage)
 - [Documentation](#documentation)
    - [Commands](#commands)
@@ -34,6 +35,20 @@ The last library you'll ever need for building intuitive, robust and flexible CL
 ```
 npm install cilly
 ```
+
+# Motivation and features
+The `cilly` package takes a lot of inspiration from great packages such as [commander.js](https://github.com/tj/commander.js).
+Cilly presents a small set of strong concepts that simplify the processing flow from input to invoking a command handler.
+
+The primary features that separate `cilly` from other libraries are:
+1. Separate `parse()` and `process()` methods
+2. Option sharing and inheritance between commands and subcommands
+3. `onParse()`, `onProcess()` and `validator()` hooks for options and arguments
+4. Custom usage documentation
+5. Support for generating documentation from command definitions
+6. Fully typed
+7. Fully tested ![coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Minibrams/1708995a4933a08f4838df0243926653/raw/cilly__main.json)
+
 
 # Basic usage
 With a file called `build.ts`: 
