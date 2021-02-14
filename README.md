@@ -26,6 +26,7 @@ The last library you'll ever need for building intuitive, robust and flexible CL
       - [onProcess()](#onprocess)
    - [Generating documentation](#generating-documentation)
    - [Custom help handlers](#custom-help-handlers)
+   - [Custom version handlers](#custom-version-handlers)
    - [Exception handling](#exception-handling)
 
 # Installation
@@ -589,6 +590,17 @@ new CliCommand('build')
    .withHelpHandler((command: CommandDefinition) => {
       console.log(`This is the documentation for ${command.name} (${command.definition})`)
       ...
+      process.exit()
+   })
+```
+
+## Custom version handlers
+You can set the version of a command with `.withVersion('1.2.3')`. This will set the version and add a `--version` option that prints the version. 
+If you want to override how the version is displayed, you can do so by passing a handler: 
+```typescript
+new CliCommand('build')
+   .withVersion('1.2.3', (command: CommandDefinition) => {
+      console.log(`The version of this command is ${command.version}`)
       process.exit()
    })
 ```
