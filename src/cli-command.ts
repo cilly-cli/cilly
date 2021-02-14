@@ -1,6 +1,5 @@
-import { CillyException } from './exceptions/cilly-exception'
 import { showHelp } from './presentation'
-import { STRINGS } from './strings'
+import { DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, UnexpectedValueException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
 import { getNegatedFlag, TokenParser } from './tokens/token-parser'
 
 export type ArgumentValue = any
@@ -67,38 +66,36 @@ export type CommandDefinition = {
   args: ArgumentDefinition[],
   subCommands: CommandDefinition[]
 }
-
 export class CliCommand {
 
   name: string
-  handler?: CommandHandler
-  helpHandler: (command: CommandDefinition) => void
   description: string
-  inheritOpts: boolean
-  consumeUnknownOpts: boolean
 
-  args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
-  opts: { [name: string]: Option } = {}
-  subCommands: { [name: string]: CliCommand } = {}
-  shortNameMap: { [shortName: string]: string } = {}
-  argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
-  negatableOptsMap: { [name: string]: Option } = {}  // Maps --no-* flags to negatable options
+  private handler?: CommandHandler
+  private helpHandler: (command: CommandDefinition) => void
+  private inheritOpts?: boolean
+  private consumeUnknownOpts?: boolean
+  private args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
+  private opts: { [name: string]: Option } = {}
+  private subCommands: { [name: string]: CliCommand } = {}
+  private shortNameMap: { [shortName: string]: string } = {}
+  private argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
+  private negatableOptsMap: { [name: string]: Option } = {}  // Maps --no-* flags to negatable options
 
-  parsed: {
+  private parsed: {
     args: ParsedArguments
     opts: ParsedOptions
     extra: string[]
   } = { args: {}, opts: {}, extra: [] }
-  extra: string[] = []
 
-  constructor(name: string, opts: CliCommandOptions = { inheritOpts: true, consumeUnknownOpts: false }) {
+  constructor(name: string, opts: CliCommandOptions = { inheritOpts: false, consumeUnknownOpts: false }) {
     if (!TokenParser.isValidName(name)) {
-      throw new CillyException(STRINGS.INVALID_COMMAND_NAME(name))
+      throw new InvalidCommandNameException(name)
     }
 
     this.name = name
-    this.inheritOpts = opts.inheritOpts ?? true
-    this.consumeUnknownOpts = opts.consumeUnknownOpts ?? false
+    this.inheritOpts = opts.inheritOpts
+    this.consumeUnknownOpts = opts.consumeUnknownOpts
     this.helpHandler = showHelp
     this.withOptions({
       name: ['-h', '--help'],
@@ -121,7 +118,7 @@ export class CliCommand {
     for (const arg of args) {
       this.checkArgument(arg)
       if (this.args.some(a => a.name == arg.name)) {
-        throw new CillyException(STRINGS.DUPLICATE_ARG_NAME(arg.name))
+        throw new DuplicateArgumentException(arg.name, this.dump())
       }
       this.args.push(arg)
       this.argsMap[this.getName(arg)] = arg
@@ -136,10 +133,10 @@ export class CliCommand {
       const name = this.getName(option)
       const short = this.getShortName(option)
       if (name in this.opts) {
-        throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(name))
+        throw new DuplicateOptionException(name, this.dump())
       }
       if (short in this.shortNameMap) {
-        throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(short))
+        throw new DuplicateOptionException(short, this.dump())
       }
       if (option.negatable) {
         const negatedFlag = getNegatedFlag(option.name[1])
@@ -175,14 +172,85 @@ export class CliCommand {
     return this
   }
 
-  public dump(): CommandDefinition {
-
+  public dump(dumped: CliCommand[] = []): CommandDefinition {
     return {
       name: this.name,
       description: this.description,
       opts: Object.values(this.opts).map(o => this.dumpOption(o)),
       args: Object.values(this.argsMap).map(a => this.dumpArgument(a)),
-      subCommands: Object.values(this.subCommands).map(c => c.dump())
+      subCommands: dumped.includes(this)
+        ? []  // Prevent endless recursion
+        : Object.values(this.subCommands).map(c => c.dump(dumped.concat(this)))
+    }
+  }
+
+  /**
+   * Parses the process arguments and generates args, opts, and extra objects.
+   * Does not invoke command handlers and does not invoke hooks or validators.
+   * @param processArgs The process arguments (typically process.argv)
+   * @param opts parse() automatically strips the first two arguments from its input.
+   * To prevent this, set opts.stripExecScript to false.
+   */
+  public parse(processArgs: string[], opts: { raw?: boolean } = {}): ParsedInput {
+    // The "queue" of arguments, cloned so we don't modify the original
+    const q = [...opts.raw ? processArgs : processArgs.slice(2)]
+
+    // Parse the input
+    while (q.length) {
+      const next = q[0]
+
+      if (next === this.name) {
+        q.shift()
+        continue
+      }
+
+      if (next in this.subCommands) {
+        return this.subCommands[next].parse(q, { raw: true })
+      }
+
+      if (TokenParser.isOptionName(next)) {
+        const parsed = this.consumeOption(q)
+        if (!parsed) continue
+        const [name, value] = parsed
+        this.parsed.opts[name] = value
+      } else if (!this.isEmpty(this.args)) {
+        const parsed = this.consumeArgument(this.args.shift(), q)
+        if (!parsed) continue
+        const [name, value] = parsed
+        this.parsed.args[name] = value
+      } else if (!this.isEmpty(this.subCommands)) {
+        throw new UnknownSubcommandException(next, this.dump())
+      } else {
+        this.parsed.extra.push(next)
+        q.shift()
+      }
+    }
+
+    this.handleUnassignedOptions()
+    this.handleUnassignedArguments()
+
+    return this.parsed
+  }
+
+  public async process(
+    processArgs: string[],
+    opts: { raw?: boolean } = {}): Promise<any> {
+    this.checkForMissingCommandHandlers()
+
+    const parsed = this.parse(processArgs, opts)
+    const command = this.getCommand(opts.raw ? processArgs : processArgs.slice(2))
+
+    // Run hooks
+    await this.runHooks(parsed, 'args', this.argsMap)
+    await this.runHooks(parsed, 'opts', this.opts)
+
+    // Run validators
+    await this.runValidators(parsed, 'args', this.argsMap)
+    await this.runValidators(parsed, 'opts', this.opts)
+
+    // Run handler
+    if (command.handler !== undefined) {
+      return command.handler(parsed.args, parsed.opts, parsed.extra)
     }
   }
 
@@ -207,77 +275,9 @@ export class CliCommand {
     }
   }
 
-  /**
-   * Parses the process arguments and generates args, opts, and extra objects.
-   * Does not invoke command handlers and does not invoke hooks or validators.
-   * @param processArgs The process arguments (typically process.argv)
-   * @param opts parse() automatically strips the first two arguments from its input.
-   * To prevent this, set opts.stripExecScript to false.
-   */
-  public parse(processArgs: string[], opts: { stripExecScript?: boolean } = { stripExecScript: true }): ParsedInput {
-    // The "queue" of arguments, cloned so we don't modify the original
-    const q = [...opts.stripExecScript ? processArgs.slice(2) : processArgs]
-
-    // Parse the input
-    while (q.length) {
-      const next = q[0]
-
-      if (next === this.name) {
-        q.shift()
-        continue
-      }
-
-      if (next in this.subCommands) {
-        return this.subCommands[next].parse(q, { stripExecScript: false })
-      }
-
-      if (TokenParser.isOptionName(next)) {
-        const parsed = this.consumeOption(q)
-        if (!parsed) continue
-        const [name, value] = parsed
-        this.parsed.opts[name] = value
-      } else if (!this.isEmpty(this.args)) {
-        const parsed = this.consumeArgument(this.args.shift(), q)
-        if (!parsed) continue
-        const [name, value] = parsed
-        this.parsed.args[name] = value
-      } else {
-        this.parsed.extra.push(next)
-        q.shift()
-      }
-    }
-
-    this.handleUnassignedOptions()
-    this.handleUnassignedArguments()
-
-    return this.parsed
-  }
-
-  public async process(
-    processArgs: string[],
-    opts: { stripExecScript?: boolean } = {}): Promise<any> {
-    this.checkForMissingCommandHandlers()
-
-    const parsed = this.parse(processArgs, opts)
-    const command = this.getCommand(processArgs)
-
-    // Run hooks
-    await this.runHooks(parsed, 'args', this.argsMap)
-    await this.runHooks(parsed, 'opts', this.opts)
-
-    // Run validators
-    await this.runValidators(parsed, 'args', this.argsMap)
-    await this.runValidators(parsed, 'opts', this.opts)
-
-    // Run handler
-    if (command.handler !== undefined) {
-      return command.handler(parsed.args, parsed.opts, parsed.extra)
-    }
-  }
-
   private checkForMissingCommandHandlers(): void {
     if (!this.handler) {
-      throw new CillyException(STRINGS.NO_COMMAND_HANDLER(this.name))
+      throw new NoCommandHandlerException(this.dump())
     }
 
     for (const subCommand of Object.values(this.subCommands)) {
@@ -317,7 +317,7 @@ export class CliCommand {
     }
     const validationResult = await optOrArg.validator(value, parsed)
     if (validationResult !== true) {
-      throw new CillyException(STRINGS.VALIDATION_ERROR(this.getName(optOrArg), value, validationResult))
+      throw new ValidationError(this.getName(optOrArg), value, validationResult)
     }
   }
 
@@ -351,12 +351,12 @@ export class CliCommand {
         this.parsed.extra.push(next)
         return undefined
       } else {
-        throw new CillyException(STRINGS.UNKNOWN_OPTION_NAME(next))
+        throw new UnknownOptionException(next, this.dump())
       }
     }
 
     if (name in this.parsed.opts) {
-      throw new CillyException(STRINGS.DUPLICATE_OPT_NAME(name))
+      throw new DuplicateOptionException(name, this.dump())
     }
 
     const opt = this.opts[name]
@@ -370,7 +370,7 @@ export class CliCommand {
       for (const arg of opt.args) {
         const parsed = this.consumeArgument(arg, q)
         if (!parsed) {
-          throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`An argument for ${name}`, 'nothing'))
+          throw new UnexpectedValueException(`a value for ${name}`, 'nothing')
         }
         const [argName, argValue] = parsed
         optValue[argName] = argValue
@@ -389,7 +389,7 @@ export class CliCommand {
   private consumeArgument(arg: Argument | undefined, q: string[]): [string, ArgumentValue] {
     if (!arg) {
       // Shouldn't ever happen, just to make TypeScript happy with the .shift() input
-      throw new CillyException(STRINGS.EXPECTED_BUT_GOT('an argument', 'nothing'))
+      throw new UnexpectedValueException('an argument', 'nothing')
     }
 
     let argValue: ArgumentValue = undefined
@@ -404,7 +404,7 @@ export class CliCommand {
       }
     } else {
       if (arg.required) {
-        throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`a value for "${arg.name}"`, 'nothing'))
+        throw new UnexpectedValueException(`a value for "${arg.name}"`, 'nothing')
       } else {
         argValue = arg.defaultValue ?? undefined
       }
@@ -432,7 +432,7 @@ export class CliCommand {
     for (const [name, opt] of Object.entries(this.opts)) {
       if (!(name in this.parsed.opts)) {
         if (opt.required) {
-          throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`a value for "${name}"`, 'nothing'))
+          throw new UnexpectedValueException(`a value for "${name}"`, 'nothing')
         } else {
           this.parsed.opts[name] = opt.defaultValue
         }
@@ -446,7 +446,7 @@ export class CliCommand {
    */
   private handleUnassignedArguments(): void {
     for (const a of this.args.filter(a => a.required)) {
-      throw new CillyException(STRINGS.EXPECTED_BUT_GOT(`a value for "${a.name}"`, 'nothing'))
+      throw new UnexpectedValueException(`a value for "${a.name}"`, 'nothing')
     }
 
     for (const a of this.args) {
@@ -456,14 +456,14 @@ export class CliCommand {
 
   private checkOption(option: Option): void {
     if (option.name.length !== 2) {
-      throw new CillyException(STRINGS.INVALID_N_OPTION_NAMES(option.name))
+      throw new InvalidNumOptionNamesException(option.name)
     }
     const [short, long] = option.name
     if (!TokenParser.isShortOptionName(short)) {
-      throw new CillyException(STRINGS.INVALID_SHORT_OPTION_NAME(short))
+      throw new InvalidShortOptionNameException(short)
     }
     if (!TokenParser.isLongOptionName(long)) {
-      throw new CillyException(STRINGS.INVALID_LONG_OPTION_NAME(long))
+      throw new InvalidLongOptionNameException(long)
     }
 
     for (const arg of option.args ?? []) {
@@ -473,21 +473,21 @@ export class CliCommand {
 
   private checkArgument(arg: Argument): void {
     if (!this.isEmpty(this.subCommands)) {
-      throw new CillyException(STRINGS.NO_ARGS_AND_SUBCOMMANDS(this.name))
+      throw new NoArgsAndSubCommandsException(this.dump())
     }
 
     if (!TokenParser.isValidName(arg.name)) {
-      throw new CillyException(STRINGS.INVALID_ARGUMENT_NAME(arg.name))
+      throw new InvalidArgumentNameException(arg.name)
     }
   }
 
   private checkSubCommand(command: CliCommand): void {
     if (!this.isEmpty(this.args)) {
-      throw new CillyException(STRINGS.NO_ARGS_AND_SUBCOMMANDS(this.name))
+      throw new NoArgsAndSubCommandsException(this.dump())
     }
 
     if (command.name in this.subCommands) {
-      throw new CillyException(STRINGS.DUPLICATE_COMMAND_NAME(command.name, this.name))
+      throw new DuplicateCommandNameException(command.name, this.dump())
     }
   }
 

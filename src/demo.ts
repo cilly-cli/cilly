@@ -2,19 +2,22 @@
 
 import { CliCommand } from './cli-command'
 
-const cli = new CliCommand('demo')
-  .withDescription('A test CLI that we can run from the command line.')
+const cmd = new CliCommand('test')
+  .withArguments(
+    { name: 'name', required: true }
+  )
   .withOptions(
-    { name: ['-v', '--verbose'], defaultValue: true },
-    { name: ['-f', '--files'], args: [{ name: 'dest', required: true }, { name: 'files', variadic: true }] }
+    { name: ['-v', '--version'], defaultValue: '0.1.2' },
+    {
+      name: ['-d', '--dir'], args: [
+        { name: 'dir', required: true }
+      ]
+    }
   )
-  .withHandler(() => { null })
-  .withSubCommands(
-    new CliCommand('hello')
-      .withDescription('Just say hello')
-      .withArguments({ name: 'an-arg', required: true })
-      .withOptions({ name: ['-hi', '--hello'], description: 'This is in the subcommand' })
-      .withHandler(() => { null })
-  )
+  .withHandler((args, opts, extra) => {
+    console.log(`Got name: ${args.name}`)
+    console.log(`Version is ${opts.version}`)
+    console.log(`Dir is ${opts.dir}`)
+  })
 
-cli.process(process.argv).then(null).catch(null)
+cmd.process(process.argv).then().catch(null)

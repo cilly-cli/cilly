@@ -2,20 +2,14 @@ import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { spy, stub } from 'sinon'
 import { Argument, CliCommand, Hook, Option, Validator } from './cli-command'
-import { CillyException } from './exceptions/cilly-exception'
-import { STRINGS } from './strings'
+import { CillyException, DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, UnexpectedValueException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
 
 chai.use(chaiAsPromised)
 
 describe('CliCommand', () => {
   it('should throw an exception with an invalid command name', () => {
     const throwing = (): void => { new CliCommand('') }
-    expect(throwing).to.throw(CillyException)
-    try {
-      throwing()
-    } catch (err) {
-      expect((err as CillyException).message).to.equal(STRINGS.INVALID_COMMAND_NAME(''))
-    }
+    expect(throwing).to.throw(InvalidCommandNameException)
   })
   describe('process()', () => {
     it('should invoke the appropriate (sub)command handler', async () => {
@@ -70,7 +64,7 @@ describe('CliCommand', () => {
           expect(args.arg).to.equal(2)
           expect(args.ot).to.equal('general')
         })
-      await cmd.process(['test', 'hello', 'general'], { stripExecScript: false })
+      await cmd.process(['test', 'hello', 'general'], { raw: true })
     })
     it('should throw if a hook assigns an invalid value', async () => {
       const validator: Validator = () => false
@@ -82,14 +76,8 @@ describe('CliCommand', () => {
         .withArguments({ name: 'arg', hook: hook, validator: validator }, { name: 'ot' })
         .withHandler(() => { null })
 
-      await expect(cmd.process(['test', 'hello', 'general'], { stripExecScript: false }))
-        .to.eventually.be.rejectedWith(CillyException)
-
-      try {
-        await cmd.process(['test', 'hello', 'general'], { stripExecScript: false })
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.VALIDATION_ERROR('arg', 2, false))
-      }
+      await expect(cmd.process(['test', 'hello', 'general'], { raw: true }))
+        .to.eventually.be.rejectedWith(ValidationError)
     })
   })
   describe('checkForMissingCommandHandlers()', () => {
@@ -102,21 +90,21 @@ describe('CliCommand', () => {
       second.withSubCommands(third, first)
 
       const checkForMissingCommandHandlers = (first as any).checkForMissingCommandHandlers.bind(first)
-      expect(() => checkForMissingCommandHandlers()).to.throw(CillyException)
+      expect(() => checkForMissingCommandHandlers()).to.throw(NoCommandHandlerException)
       try {
         checkForMissingCommandHandlers()
       } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.NO_COMMAND_HANDLER(first.name))
+        expect((err as NoCommandHandlerException).command.name).to.equal(first.name)
       }
 
-      first.handler = (): void => { null }
-      second.handler = (): void => { null }
+      (first as any).handler = (): void => { null }
+      (second as any).handler = (): void => { null }
 
-      expect(() => checkForMissingCommandHandlers()).to.throw(CillyException)
+      expect(() => checkForMissingCommandHandlers()).to.throw(NoCommandHandlerException)
       try {
         checkForMissingCommandHandlers()
       } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.NO_COMMAND_HANDLER(third.name))
+        expect((err as NoCommandHandlerException).command.name).to.equal(third.name)
       }
     })
     it('should not throw if no subcommand is missing a handler', () => {
@@ -126,11 +114,11 @@ describe('CliCommand', () => {
       const checkForMissingCommandHandlers = (first as any).checkForMissingCommandHandlers.bind(first)
 
       first.withSubCommands(second)
-      second.withSubCommands(third)
+      second.withSubCommands(third);
 
-      first.handler = (): void => { null }
-      second.handler = (): void => { null }
-      third.handler = (): void => { null }
+      (first as any).handler = (): void => { null }
+      (second as any).handler = (): void => { null }
+      (third as any).handler = (): void => { null }
 
       expect(() => checkForMissingCommandHandlers()).to.not.throw()
     })
@@ -155,10 +143,15 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should throw if an unknown subcommand is requested', () => {
+      const cmd = new CliCommand('test').withSubCommands(new CliCommand('next'))
+      const throwing = (): void => { cmd.parse(['test', 'not-next'], { raw: true }) }
+      expect(throwing).to.throw(UnknownSubcommandException)
+    })
     it('should correctly negate negatable flags', () => {
       const cmd = new CliCommand('parent')
         .withOptions({ name: ['-v', '--verbose'], defaultValue: true, negatable: true })
-      const parsed = cmd.parse(['parent', '--no-verbose'], { stripExecScript: false })
+      const parsed = cmd.parse(['parent', '--no-verbose'], { raw: true })
       expect(parsed).to.eql({
         args: {},
         opts: {
@@ -179,7 +172,7 @@ describe('CliCommand', () => {
             )
         )
 
-      const parsed = cmd.parse(['parent', 'child', '-f', '.gitignore', '.eslintrc.json'], { stripExecScript: false })
+      const parsed = cmd.parse(['parent', 'child', '-f', '.gitignore', '.eslintrc.json'], { raw: true })
       expect(parsed).to.eql({
         args: {},
         opts: {
@@ -194,31 +187,21 @@ describe('CliCommand', () => {
   describe('parse()', () => {
     it('should throw an error when duplicate options are passed', () => {
       const cmd = new CliCommand('test').withOptions({ name: ['-s', '--same'] })
-      const throwing = (): void => { cmd.parse(['test', '--same', '--same'], { stripExecScript: false }) }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.DUPLICATE_OPT_NAME('same'))
-      }
+      const throwing = (): void => { cmd.parse(['test', '--same', '--same'], { raw: true }) }
+      expect(throwing).to.throw(DuplicateOptionException)
     })
     it('should throw an error when an unknown option is passed', () => {
       const throwing = (): void => {
         const cmd = new CliCommand('test').withOptions({ name: ['-s', '--same'] })
-        cmd.parse(['test', '--same', '--not-same'], { stripExecScript: false })
+        cmd.parse(['test', '--same', '--not-same'], { raw: true })
       }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.UNKNOWN_OPTION_NAME('--not-same'))
-      }
+      expect(throwing).to.throw(UnknownOptionException)
     })
     it('should put all extra arguments into extra', () => {
       const cmd = new CliCommand('test')
         .withArguments({ name: 'arg' })
 
-      const parsed = cmd.parse(['test', 'hello', 'this', 'should', 'go', 'into', 'extra'], { stripExecScript: false })
+      const parsed = cmd.parse(['test', 'hello', 'this', 'should', 'go', 'into', 'extra'], { raw: true })
       expect(parsed).to.eql({
         args: {
           arg: 'hello'
@@ -233,7 +216,7 @@ describe('CliCommand', () => {
       const cmd = new CliCommand('test', { consumeUnknownOpts: true })
         .withArguments({ name: 'arg' })
 
-      const parsed = cmd.parse(['test', 'hello', '--go'], { stripExecScript: false })
+      const parsed = cmd.parse(['test', 'hello', '--go'], { raw: true })
       expect(parsed).to.eql({
         args: {
           arg: 'hello'
@@ -248,7 +231,7 @@ describe('CliCommand', () => {
       const cmd = new CliCommand('test', { consumeUnknownOpts: true })
         .withArguments({ name: 'arg' })
 
-      const parsed = cmd.parse(['test', 'hello', 'this', 'should', '--go', 'into', 'extra'], { stripExecScript: false })
+      const parsed = cmd.parse(['test', 'hello', 'this', 'should', '--go', 'into', 'extra'], { raw: true })
       expect(parsed).to.eql({
         args: {
           arg: 'hello'
@@ -272,7 +255,7 @@ describe('CliCommand', () => {
           }
         )
 
-      const parsed = cmd.parse(['test', 'hello', 'there', '--dir', '/usr/bin/', '-e', 'general'], { stripExecScript: false })
+      const parsed = cmd.parse(['test', 'hello', 'there', '--dir', '/usr/bin/', '-e', 'general'], { raw: true })
       expect(parsed).to.eql({
         args: {
           first: 'hello',
@@ -297,7 +280,7 @@ describe('CliCommand', () => {
           { name: ['-mo', '--many-optional'], args: [{ name: 'things', variadic: true, required: false }], defaultValue: [1, 2, 3] }
         )
 
-      const parsed = cmd.parse(['test', 'one', 'two', 'three', '-m', 'many-one', 'many two'], { stripExecScript: false })
+      const parsed = cmd.parse(['test', 'one', 'two', 'three', '-m', 'many-one', 'many two'], { raw: true })
       expect(parsed).to.eql({
         args: {
           first: ['one', 'two', 'three']
@@ -364,12 +347,7 @@ describe('CliCommand', () => {
       const throwing = (): void => {
         checkSubCommand(new CliCommand('something'))
       }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.NO_ARGS_AND_SUBCOMMANDS('test'))
-      }
+      expect(throwing).to.throw(NoArgsAndSubCommandsException)
     })
     it('should not do anything if command has no arguments', () => {
       const cli = new CliCommand('test')
@@ -386,12 +364,7 @@ describe('CliCommand', () => {
       const throwing = (): void => {
         checkArgument({ name: 'arg' })
       }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.NO_ARGS_AND_SUBCOMMANDS('test'))
-      }
+      expect(throwing).to.throw(NoArgsAndSubCommandsException)
     })
     it('should not do anything if command has no subcommands', () => {
       const cli = new CliCommand('test')
@@ -403,12 +376,7 @@ describe('CliCommand', () => {
       const cli = new CliCommand('test')
       const checkArgument = (cli as any).checkArgument.bind(cli)
       const throwing = (): void => { checkArgument({ name: 'invalid arg' }) }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.INVALID_ARGUMENT_NAME('invalid arg'))
-      }
+      expect(throwing).to.throw(InvalidArgumentNameException)
     })
   })
   describe('checkOption()', () => {
@@ -417,34 +385,19 @@ describe('CliCommand', () => {
       const checkOption = (cli as any).checkOption.bind(cli)
       const names = ['-w', '--wee', '----weeeee']
       const throwing = (): void => { checkOption({ name: names }) }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.INVALID_N_OPTION_NAMES(names))
-      }
+      expect(throwing).to.throw(InvalidNumOptionNamesException)
     })
     it('should throw an exception if short flag is invalid', () => {
       const cli = new CliCommand('test')
       const checkOption = (cli as any).checkOption.bind(cli)
       const throwing = (): void => { checkOption({ name: ['wrong', '--not-wrong'] }) }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.INVALID_SHORT_OPTION_NAME('wrong'))
-      }
+      expect(throwing).to.throw(InvalidShortOptionNameException)
     })
     it('should throw an exception if long flag is invalid', () => {
       const cli = new CliCommand('test')
       const checkOption = (cli as any).checkOption.bind(cli)
       const throwing = (): void => { checkOption({ name: ['-not-wrong', 'wrong'] }) }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.INVALID_LONG_OPTION_NAME('wrong'))
-      }
+      expect(throwing).to.throw(InvalidLongOptionNameException)
     })
     it('should call checkArgument() for all option args', () => {
       const cli = new CliCommand('test')
@@ -460,12 +413,7 @@ describe('CliCommand', () => {
       const cli = new CliCommand('test').withArguments({ name: 'arg', required: true })
       const handleUnassignedArguments = (cli as any).handleUnassignedArguments.bind(cli)
       const throwing = (): void => handleUnassignedArguments()
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.EXPECTED_BUT_GOT('a value for "arg"', 'nothing'))
-      }
+      expect(throwing).to.throw(UnexpectedValueException)
     })
     it('should assign default values to all optional, unassigned arguments', () => {
       const cli = new CliCommand('test').withArguments({ name: 'arg', required: false }, { name: 'my-arg', required: false, defaultValue: 'hello' })
@@ -483,12 +431,7 @@ describe('CliCommand', () => {
       const cli = new CliCommand('test').withOptions({ name: ['-s', '--same'], required: true })
       const handleUnassignedOptions = (cli as any).handleUnassignedOptions.bind(cli)
       const throwing = (): void => handleUnassignedOptions()
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.EXPECTED_BUT_GOT('a value for "same"', 'nothing'))
-      }
+      expect(throwing).to.throw(UnexpectedValueException)
     })
     it('should assign default values to all optional, unassigned options', () => {
       const cli = new CliCommand('test').withOptions({ name: ['-s', '--same'], defaultValue: [1, 2, 3] })
@@ -515,12 +458,7 @@ describe('CliCommand', () => {
             { name: 'my-arg' }
           )
       }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.DUPLICATE_ARG_NAME('my-arg'))
-      }
+      expect(throwing).to.throw(DuplicateArgumentException)
     })
   })
   describe('withOptions()', () => {
@@ -533,12 +471,7 @@ describe('CliCommand', () => {
           )
       }
 
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.DUPLICATE_OPT_NAME('s'))
-      }
+      expect(throwing).to.throw(DuplicateOptionException)
     })
     it('should throw an exception when the long name already exists', () => {
       const throwing = (): void => {
@@ -549,12 +482,7 @@ describe('CliCommand', () => {
           )
       }
 
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.DUPLICATE_OPT_NAME('same'))
-      }
+      expect(throwing).to.throw(DuplicateOptionException)
     })
   })
   describe('withSubCommands()', () => {
@@ -565,24 +493,19 @@ describe('CliCommand', () => {
       )
       const child = new CliCommand('child', { inheritOpts: true }).withOptions({ name: ['-a', '--ada'] })
       parent.withSubCommands(child)
-      for (const opt of Object.keys(parent.opts)) {
-        expect(Object.keys(child.opts)).to.contain(opt)
+      for (const opt of Object.keys((parent as any).opts)) {
+        expect(Object.keys((child as any).opts)).to.contain(opt)
       }
-      expect(child.opts).to.haveOwnProperty('ada')
-      expect(child.opts).to.haveOwnProperty('short')
-      expect(child.opts).to.haveOwnProperty('nada')
+      expect((child as any).opts).to.haveOwnProperty('ada')
+      expect((child as any).opts).to.haveOwnProperty('short')
+      expect((child as any).opts).to.haveOwnProperty('nada')
     })
     it('should throw on duplicate subcommands', () => {
       const parent = new CliCommand('parent')
       const first = new CliCommand('first')
       const alsoFirst = new CliCommand('first')
       const throwing = (): void => { parent.withSubCommands(first, alsoFirst) }
-      expect(throwing).to.throw(CillyException)
-      try {
-        throwing()
-      } catch (err) {
-        expect((err as CillyException).message).to.equal(STRINGS.DUPLICATE_COMMAND_NAME('first', 'parent'))
-      }
+      expect(throwing).to.throw(DuplicateCommandNameException)
     })
   })
   describe('dump()', () => {
@@ -687,7 +610,7 @@ describe('CliCommand', () => {
           throw new CillyException('no help')
         })
 
-      await expect(cmd.process(['test', '--help'], { stripExecScript: false })).to.eventually.be.rejectedWith(CillyException)
+      await expect(cmd.process(['test', '--help'], { raw: true })).to.eventually.be.rejectedWith(CillyException)
     })
   })
 })
