@@ -29,7 +29,7 @@ npm install cilly
 ```
 
 # Basic usage
-With the file `build.ts`: 
+With a file called `build.ts`: 
 ```typescript
 #!/usr/local/bin/ts-node
 
