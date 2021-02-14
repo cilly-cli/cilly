@@ -143,6 +143,23 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should immediately invoke the help handler when seeing the --help flag', () => {
+      const helpFnc = spy(() => { null })
+      const secondHelpFnc = spy(() => { null })
+      const cmd = new CliCommand('test', { exitOnHelp: false })
+        .withHelpHandler(helpFnc)
+        .withSubCommands(
+          new CliCommand('next', { exitOnHelp: false })
+            .withHelpHandler(secondHelpFnc)
+        )
+
+      cmd.parse(['test', '--help'], { raw: true })
+      expect(helpFnc.called).to.be.true
+      expect(secondHelpFnc.called).to.be.false
+
+      cmd.parse(['test', 'next', '--help'], { raw: true })
+      expect(secondHelpFnc.called).to.be.true
+    })
     it('should throw if an unknown subcommand is requested', () => {
       const cmd = new CliCommand('test').withSubCommands(new CliCommand('next'))
       const throwing = (): void => { cmd.parse(['test', 'not-next'], { raw: true }) }

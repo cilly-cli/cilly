@@ -39,7 +39,8 @@ export type ParsedInput = {
 
 export type CliCommandOptions = {
   inheritOpts?: boolean,
-  consumeUnknownOpts?: boolean
+  consumeUnknownOpts?: boolean,
+  exitOnHelp?: boolean
 }
 
 export type OptionDefinition = {
@@ -74,6 +75,7 @@ export class CliCommand {
   private handler?: CommandHandler
   private helpHandler: (command: CommandDefinition) => void
   private inheritOpts?: boolean
+  private exitOnHelp?: boolean
   private consumeUnknownOpts?: boolean
   private args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
   private opts: { [name: string]: Option } = {}
@@ -88,24 +90,23 @@ export class CliCommand {
     extra: string[]
   } = { args: {}, opts: {}, extra: [] }
 
-  constructor(name: string, opts: CliCommandOptions = { inheritOpts: false, consumeUnknownOpts: false }) {
+  constructor(name: string, opts: CliCommandOptions = {
+    inheritOpts: false,
+    consumeUnknownOpts: false,
+    exitOnHelp: true
+  }) {
     if (!TokenParser.isValidName(name)) {
       throw new InvalidCommandNameException(name)
     }
 
     this.name = name
     this.inheritOpts = opts.inheritOpts
+    this.exitOnHelp = opts.exitOnHelp
     this.consumeUnknownOpts = opts.consumeUnknownOpts
     this.helpHandler = showHelp
     this.withOptions({
       name: ['-h', '--help'],
-      description: 'Display help for command',
-      hook: (value): void => {
-        if (value) {
-          this.helpHandler(this.dump())
-          process.exit(0)
-        }
-      }
+      description: 'Display help for command'
     })
   }
 
@@ -209,6 +210,9 @@ export class CliCommand {
       }
 
       if (TokenParser.isOptionName(next)) {
+        if (this.isHelpOption(next)) {
+          this.handleHelpOption()
+        }
         const parsed = this.consumeOption(q)
         if (!parsed) continue
         const [name, value] = parsed
@@ -533,6 +537,17 @@ export class CliCommand {
       return obj.length === 0
     } else {
       return Object.keys(obj).length === 0
+    }
+  }
+
+  private isHelpOption(opt: string): boolean {
+    return ['-h', '--help'].includes(opt)
+  }
+
+  private handleHelpOption(): void {
+    this.helpHandler(this.dump())
+    if (this.exitOnHelp) {
+      process.exit(0)
     }
   }
 }
