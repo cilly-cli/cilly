@@ -159,7 +159,7 @@ new CliCommand('command')
    .withOptions()         // Register options
    .withSubCommands()     // Register subcommands
    .withHelpHandler()     // Custom handling of the --help flag
-   .parse()               // Generate { args, opts, extra } from process.argv, runs validators
+   .parse()               // Generate { args, opts, extra } from process.argv
    .process()             // Run parse(), hooks, and call command handler
    .help()                // Call the helpHandler
    .dump()                // Dump the command description to an object (useful for documentation)
