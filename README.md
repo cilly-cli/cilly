@@ -29,11 +29,11 @@ npm install cilly
 # Basic usage
 
 # Documentation
+## Arguments
+## Options
 ## Commands
 ### Subcommands
 ### Option inheritance
-## Arguments
-## Options
 ## Validators
 ## Hooks
 ## Generating documentation
