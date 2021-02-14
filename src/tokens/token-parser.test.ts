@@ -194,4 +194,13 @@ describe('src/token-parser/token-parser.ts', () => {
       }
     })
   })
+  describe('Parser.isVariadicTerminator', () => {
+    it('should correctly identify terminators', () => {
+      expect(TokenParser.isVariadicTerminator('--')).to.be.true
+      expect(TokenParser.isVariadicTerminator('-')).to.be.false
+      expect(TokenParser.isVariadicTerminator('---')).to.be.false
+      expect(TokenParser.isVariadicTerminator('')).to.be.false
+      expect(TokenParser.isVariadicTerminator('--stop')).to.be.false
+    })
+  })
 })
