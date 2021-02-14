@@ -136,6 +136,57 @@ Arguments are simply values passed directly to a command or an option.
 
 Options are named flags, e.g. `--option` that can also be assigned their own arguments.
 
+## Commands
+
+Commands are represented by `CliCommand` class instances.
+The command constructor has the following signature: 
+```
+CliCommand(name: string, opts?: { inheritOpts?: boolean, consumeUnknownOpts?: boolean })
+```
+
+The `CliCommand` API looks as follows: 
+```typescript
+new CliCommand('command')
+   .withVersion()         // Set the version
+   .withDescription()     // Set the description
+   .withHandler()         // Set the function to run when command is invoked
+   .withArguments()       // Register arguments
+   .withOptions()         // Register options
+   .withSubCommands()     // Register subcommands
+   .withHelpHandler()     // Custom handling of the --help flag
+   .parse()               // Generate { args, opts, extra } from process.argv, runs validators
+   .process()             // Run parse(), hooks, and call command handler
+   .help()                // Call the helpHandler
+   .dump()                // Dump the command description to an object (useful for documentation)
+```
+
+### parse()
+The `parse()` method takes the command line arguments (`process.argv`) and parses it to produce the `{args, opts, extra}` objects passed to handlers.
+
+The `parse()` method does not call any hooks and does not invoke command handlers, and thus does not require a command handler to be defined.
+```
+const cmd = new CliCommand('build')
+   .withArguments({ name: 'address' })
+   .withOptions({ name: ['-g', '--garage'], negatable: true })
+
+const { args, opts, extra } = cmd.parse(process.argv)
+```
+
+### process()
+The `process()` method (asynchronous) calls `parse()`, runs argument and options hooks, validators, and invokes the appropriate command handler with the output of `parse()`. The result of `await process()` is whatever the command handler returns. 
+```
+const cmd = new CliCommand('build')
+   .withArguments({ name: 'address' })
+   .withOptions({ name: ['-g', '--garage'], negatable: true })
+   
+   // The args, opts, extra comes from .parse()
+   .withHandler((args, opts, extra) => {
+      return new House(args.address, opts.garage)
+   })
+
+const house = await cmd.process(process.argv)
+```
+
 ## Arguments
 Arguments are provided to a command with the `withArguments()` chain method. 
 The `withArguments()` method takes a list of `Argument` type options: 
@@ -298,7 +349,21 @@ Options:
   -p, --parents (--no-parents)     Name of (living) parents
 ```
 
-## Commands
+## Extra
+All arguments that cannot be parsed are put in the `extra` argument to command handlers.
+If desired, a command can choose to to treat unknown options similarly by setting the `consumeUnknownOpts` flag: 
+```typescript
+new CliCommand('build', { consumeUnknownOpts: true })
+   .withHandler((args, opts, extra) => {
+      console.log(extra)
+   })
+```
+With the input: 
+```
+build --an --option --that --isnt --defined
+```
+
+The handler would print `['--an', '--option', '--that', '--isnt', '--defined']`
 
 ### Subcommands
 Commands can have an arbitrary number of subcommands, allowing developers to decouple their command handling logic.
