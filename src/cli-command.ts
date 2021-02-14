@@ -1,5 +1,5 @@
 import { showHelp } from './presentation'
-import { DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, UnexpectedValueException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
+import { DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, ExpectedButGotException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
 import { getNegatedFlag, TokenParser } from './tokens/token-parser'
 
 export type ArgumentValue = any
@@ -7,7 +7,8 @@ export type OptionValue = ArgumentValue | { [name: string]: ArgumentValue }
 export type ParsedArguments = { [name: string]: ArgumentValue }
 export type ParsedOptions = { [name: string]: OptionValue }
 export type Validator = (value: ArgumentValue, input: ParsedInput) => Promise<string | boolean> | string | boolean
-export type Hook = (value: ArgumentValue, input: ParsedInput, assign: (value: any) => Promise<void>) => any
+export type OnParseHook = (value: ArgumentValue, input: ParsedInput) => void
+export type OnProcessHook = (value: ArgumentValue, input: ParsedInput, assign: (value: any) => Promise<void>) => Promise<void> | void
 export type CommandHandler = (args: ParsedArguments, opts: ParsedOptions, extra?: string[]) => Promise<void> | void
 
 export type Argument = {
@@ -16,7 +17,8 @@ export type Argument = {
   variadic?: boolean,
   description?: string,
   defaultValue?: ArgumentValue,
-  hook?: Hook,
+  onParse?: OnParseHook,
+  onProcess?: OnProcessHook,
   validator?: Validator
 }
 
@@ -27,7 +29,8 @@ export type Option = {
   args?: Argument[],
   defaultValue?: OptionValue,
   description?: string,
-  hook?: Hook,
+  onParse?: OnParseHook,
+  onProcess?: OnProcessHook,
   validator?: Validator
 }
 
@@ -39,8 +42,7 @@ export type ParsedInput = {
 
 export type CliCommandOptions = {
   inheritOpts?: boolean,
-  consumeUnknownOpts?: boolean,
-  exitOnHelp?: boolean
+  consumeUnknownOpts?: boolean
 }
 
 export type OptionDefinition = {
@@ -70,12 +72,12 @@ export type CommandDefinition = {
 export class CliCommand {
 
   name: string
+  version: string
   description: string
 
   private handler?: CommandHandler
   private helpHandler: (command: CommandDefinition) => void
   private inheritOpts?: boolean
-  private exitOnHelp?: boolean
   private consumeUnknownOpts?: boolean
   private args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
   private opts: { [name: string]: Option } = {}
@@ -92,8 +94,7 @@ export class CliCommand {
 
   constructor(name: string, opts: CliCommandOptions = {
     inheritOpts: false,
-    consumeUnknownOpts: false,
-    exitOnHelp: true
+    consumeUnknownOpts: false
   }) {
     if (!TokenParser.isValidName(name)) {
       throw new InvalidCommandNameException(name)
@@ -101,12 +102,20 @@ export class CliCommand {
 
     this.name = name
     this.inheritOpts = opts.inheritOpts
-    this.exitOnHelp = opts.exitOnHelp
     this.consumeUnknownOpts = opts.consumeUnknownOpts
-    this.helpHandler = showHelp
+
+    /* istanbul ignore next */
+    this.helpHandler = (command: CommandDefinition): void => {
+      showHelp(command)
+      process.exit(0)
+    }
+
     this.withOptions({
       name: ['-h', '--help'],
-      description: 'Display help for command'
+      description: 'Display help for command',
+      onParse: () => {
+        this.helpHandler(this.dump())
+      }
     })
   }
 
@@ -173,6 +182,25 @@ export class CliCommand {
     return this
   }
 
+  public withVersion(version: string, handler?: (command: CommandDefinition) => void): CliCommand {
+    this.version = version
+    this.withOptions(
+      {
+        name: ['-v', '--version'], description: 'Display the version', onParse: () => {
+          /* istanbul ignore else */
+          if (handler) {
+            handler(this.dump())
+          } else {
+            console.log(this.version)
+            process.exit()
+          }
+        }
+      }
+    )
+
+    return this
+  }
+
   public dump(dumped: CliCommand[] = []): CommandDefinition {
     return {
       name: this.name,
@@ -210,9 +238,6 @@ export class CliCommand {
       }
 
       if (TokenParser.isOptionName(next)) {
-        if (this.isHelpOption(next)) {
-          this.handleHelpOption()
-        }
         const parsed = this.consumeOption(q)
         if (!parsed) continue
         const [name, value] = parsed
@@ -245,8 +270,8 @@ export class CliCommand {
     const command = this.getCommand(opts.raw ? processArgs : processArgs.slice(2))
 
     // Run hooks
-    await this.runHooks(parsed, 'args', this.argsMap)
-    await this.runHooks(parsed, 'opts', this.opts)
+    await this.runOnProcessHooks(parsed, 'args', this.argsMap)
+    await this.runOnProcessHooks(parsed, 'opts', this.opts)
 
     // Run validators
     await this.runValidators(parsed, 'args', this.argsMap)
@@ -289,9 +314,9 @@ export class CliCommand {
     }
   }
 
-  private async runHooks(parsed: ParsedInput, type: 'args' | 'opts', definitions: { [name: string]: Option | Argument }): Promise<void> {
+  private async runOnProcessHooks(parsed: ParsedInput, type: 'args' | 'opts', definitions: { [name: string]: Option | Argument }): Promise<void> {
     for (const [name, definition] of Object.entries(definitions)) {
-      if (definition.hook) {
+      if (definition.onProcess) {
         const value = parsed[type][name]
 
         // Let the hook call a function to assign a new value
@@ -301,7 +326,7 @@ export class CliCommand {
           parsed[type][name] = value
         }
 
-        await definition.hook(value, parsed, assign)
+        await definition.onProcess(value, parsed, assign)
       }
     }
   }
@@ -340,7 +365,9 @@ export class CliCommand {
   private consumeOption(q: string[]): [string, OptionValue] | undefined {
     const next = q.shift()
 
+    /* istanbul ignore if */
     if (!next) {
+      // Never happens, but needs to be here for TypeScript
       return undefined
     }
 
@@ -364,7 +391,6 @@ export class CliCommand {
     }
 
     const opt = this.opts[name]
-
     let optValue: OptionValue
 
     if (!opt.args) {
@@ -373,27 +399,29 @@ export class CliCommand {
       optValue = {}
       for (const arg of opt.args) {
         const parsed = this.consumeArgument(arg, q)
-        if (!parsed) {
-          throw new UnexpectedValueException(`a value for ${name}`, 'nothing')
-        }
         const [argName, argValue] = parsed
         optValue[argName] = argValue
       }
     }
 
-    // Fold the option arugment into the option itself if there's only one argument, e.g:
+    // Collapse the option arugment into the option itself if there's only one argument, e.g:
     // myOption = { arg: 1 } becomes myOption = 1
     if (optValue instanceof Object && Object.keys(optValue).length == 1) {
       optValue = Object.values(optValue)[0]
+    }
+
+    if (opt.onParse) {
+      opt.onParse(optValue, this.parsed)
     }
 
     return [name, optValue]
   }
 
   private consumeArgument(arg: Argument | undefined, q: string[]): [string, ArgumentValue] {
+    /* istanbul ignore if */
     if (!arg) {
-      // Shouldn't ever happen, just to make TypeScript happy with the .shift() input
-      throw new UnexpectedValueException('an argument', 'nothing')
+      // Shouldn't happen, here for the linter
+      throw new ExpectedButGotException('an argument', 'nothing')
     }
 
     let argValue: ArgumentValue = undefined
@@ -408,13 +436,19 @@ export class CliCommand {
       }
     } else {
       if (arg.required) {
-        throw new UnexpectedValueException(`a value for "${arg.name}"`, 'nothing')
+        throw new ExpectedButGotException(`a value for "${arg.name}"`, 'nothing')
       } else {
         argValue = arg.defaultValue ?? undefined
       }
     }
 
-    return [this.getName(arg), argValue]
+    const name = this.getName(arg)
+
+    if (arg.onParse) {
+      arg.onParse(argValue, this.parsed)
+    }
+
+    return [name, argValue]
   }
 
   private consumeVariadicArguments(q: string[]): string[] {
@@ -436,7 +470,7 @@ export class CliCommand {
     for (const [name, opt] of Object.entries(this.opts)) {
       if (!(name in this.parsed.opts)) {
         if (opt.required) {
-          throw new UnexpectedValueException(`a value for "${name}"`, 'nothing')
+          throw new ExpectedButGotException(`a value for "${name}"`, 'nothing')
         } else {
           this.parsed.opts[name] = opt.defaultValue
         }
@@ -450,7 +484,7 @@ export class CliCommand {
    */
   private handleUnassignedArguments(): void {
     for (const a of this.args.filter(a => a.required)) {
-      throw new UnexpectedValueException(`a value for "${a.name}"`, 'nothing')
+      throw new ExpectedButGotException(`a value for "${a.name}"`, 'nothing')
     }
 
     for (const a of this.args) {
@@ -537,17 +571,6 @@ export class CliCommand {
       return obj.length === 0
     } else {
       return Object.keys(obj).length === 0
-    }
-  }
-
-  private isHelpOption(opt: string): boolean {
-    return ['-h', '--help'].includes(opt)
-  }
-
-  private handleHelpOption(): void {
-    this.helpHandler(this.dump())
-    if (this.exitOnHelp) {
-      process.exit(0)
     }
   }
 }

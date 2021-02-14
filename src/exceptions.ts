@@ -47,7 +47,7 @@ export class InvalidArgumentNameException extends CillyException {
   }
 }
 
-export class UnexpectedValueException extends CillyException {
+export class ExpectedButGotException extends CillyException {
   constructor(public expected: string, public got: string) {
     super(`Expected ${expected} but got ${got}`)
   }

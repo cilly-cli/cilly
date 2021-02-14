@@ -1,8 +1,8 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { spy, stub } from 'sinon'
-import { Argument, CliCommand, Hook, Option, Validator } from './cli-command'
-import { CillyException, DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, UnexpectedValueException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
+import { Argument, CliCommand, OnProcessHook, Option, Validator } from './cli-command'
+import { CillyException, DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, ExpectedButGotException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
 
 chai.use(chaiAsPromised)
 
@@ -25,8 +25,8 @@ describe('CliCommand', () => {
       const hook = spy(() => { null })
       const otherHook = spy(() => { null })
       const cmd = new CliCommand('test')
-        .withArguments({ name: 'arg', hook: hook })
-        .withOptions({ name: ['-v', '--verbose'], hook: otherHook })
+        .withArguments({ name: 'arg', onProcess: hook })
+        .withOptions({ name: ['-v', '--verbose'], onProcess: otherHook })
         .withHandler(() => { null })
 
       await cmd.process(['test'])
@@ -53,27 +53,27 @@ describe('CliCommand', () => {
 
       await expect(cmd.process(['test', 'hi'])).to.eventually.be.rejectedWith(CillyException)
     })
-    it('should alter the parsed input if a hook.assign() is called', async () => {
-      const hook: Hook = async (value, parsed, assign) => {
+    it('should alter the parsed input if a onProcess.assign() is called', async () => {
+      const hook: OnProcessHook = async (value, parsed, assign) => {
         await assign(2)
       }
 
       const cmd = new CliCommand('test')
-        .withArguments({ name: 'arg', hook: hook }, { name: 'ot' })
+        .withArguments({ name: 'arg', onProcess: hook }, { name: 'ot' })
         .withHandler((args) => {
           expect(args.arg).to.equal(2)
           expect(args.ot).to.equal('general')
         })
       await cmd.process(['test', 'hello', 'general'], { raw: true })
     })
-    it('should throw if a hook assigns an invalid value', async () => {
+    it('should throw if an onProcess hook assigns an invalid value', async () => {
       const validator: Validator = () => false
-      const hook: Hook = async (value, parsed, assign) => {
+      const hook: OnProcessHook = async (value, parsed, assign) => {
         await assign(2)
       }
 
       const cmd = new CliCommand('test')
-        .withArguments({ name: 'arg', hook: hook, validator: validator }, { name: 'ot' })
+        .withArguments({ name: 'arg', onProcess: hook, validator: validator }, { name: 'ot' })
         .withHandler(() => { null })
 
       await expect(cmd.process(['test', 'hello', 'general'], { raw: true }))
@@ -143,13 +143,35 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should throw when an expected option argument is not provided', () => {
+      const cmd = new CliCommand('test')
+        .withOptions({ name: ['-n', '--name'], args: [{ name: 'name', required: true }] })
+
+      expect(() => cmd.parse(['test', '--name'], { raw: true })).to.throw(ExpectedButGotException)
+    })
+    it('should immediately invoke any onParse() hooks when parsing an option', () => {
+      const optHook = spy(() => { null })
+      const cmd = new CliCommand('test')
+        .withOptions({ name: ['-v', '--version'], onParse: optHook })
+
+      cmd.parse(['test', '-v'], { raw: true })
+      expect(optHook.called).to.be.true
+    })
+    it('should immediately invoke any onParse() hooks when parsing an argument', () => {
+      const argHook = spy(() => { null })
+      const cmd = new CliCommand('test')
+        .withArguments({ name: 'version', onParse: argHook })
+
+      cmd.parse(['test', 'a-value-for-version'], { raw: true })
+      expect(argHook.called).to.be.true
+    })
     it('should immediately invoke the help handler when seeing the --help flag', () => {
       const helpFnc = spy(() => { null })
       const secondHelpFnc = spy(() => { null })
-      const cmd = new CliCommand('test', { exitOnHelp: false })
+      const cmd = new CliCommand('test')
         .withHelpHandler(helpFnc)
         .withSubCommands(
-          new CliCommand('next', { exitOnHelp: false })
+          new CliCommand('next')
             .withHelpHandler(secondHelpFnc)
         )
 
@@ -430,7 +452,7 @@ describe('CliCommand', () => {
       const cli = new CliCommand('test').withArguments({ name: 'arg', required: true })
       const handleUnassignedArguments = (cli as any).handleUnassignedArguments.bind(cli)
       const throwing = (): void => handleUnassignedArguments()
-      expect(throwing).to.throw(UnexpectedValueException)
+      expect(throwing).to.throw(ExpectedButGotException)
     })
     it('should assign default values to all optional, unassigned arguments', () => {
       const cli = new CliCommand('test').withArguments({ name: 'arg', required: false }, { name: 'my-arg', required: false, defaultValue: 'hello' })
@@ -448,7 +470,7 @@ describe('CliCommand', () => {
       const cli = new CliCommand('test').withOptions({ name: ['-s', '--same'], required: true })
       const handleUnassignedOptions = (cli as any).handleUnassignedOptions.bind(cli)
       const throwing = (): void => handleUnassignedOptions()
-      expect(throwing).to.throw(UnexpectedValueException)
+      expect(throwing).to.throw(ExpectedButGotException)
     })
     it('should assign default values to all optional, unassigned options', () => {
       const cli = new CliCommand('test').withOptions({ name: ['-s', '--same'], defaultValue: [1, 2, 3] })
@@ -628,6 +650,18 @@ describe('CliCommand', () => {
         })
 
       await expect(cmd.process(['test', '--help'], { raw: true })).to.eventually.be.rejectedWith(CillyException)
+    })
+  })
+  describe('withVersion()', () => {
+    it('should assign the version', () => {
+      const cmd = new CliCommand('test').withVersion('1.2.3')
+      expect(cmd.version).to.equal('1.2.3')
+    })
+    it('should call the passed handler when version flag is passed', () => {
+      const handler = spy(() => { null })
+      const cmd = new CliCommand('test').withVersion('1.2.3', handler)
+      cmd.parse(['test', '--version'], { raw: true })
+      expect(handler.called).to.be.true
     })
   })
 })
