@@ -11,7 +11,10 @@
   },
   "nyc": {
     "include": "src",
-    "exclude": "src/presentation.ts"
+    "exclude": [
+      "src/presentation.ts",
+      "*/**/*.test.ts"
+    ]
   },
   "repository": {
     "type": "git",
