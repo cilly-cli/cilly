@@ -9,7 +9,7 @@ export type ParsedOptions = { [name: string]: OptionValue }
 export type Validator = (value: ArgumentValue, input: ParsedInput) => Promise<string | boolean> | string | boolean
 export type OnParseHook = (value: ArgumentValue, input: ParsedInput) => void
 export type OnProcessHook = (value: ArgumentValue, input: ParsedInput, assign: (value: any) => Promise<void>) => Promise<void> | void
-export type CommandHandler = (args: ParsedArguments, opts: ParsedOptions, extra?: string[]) => Promise<void> | void
+export type CommandHandler = (args: ParsedArguments, opts: ParsedOptions, extra?: string[]) => Promise<any> | any
 
 export type Argument = {
   name: string,
