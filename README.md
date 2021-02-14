@@ -159,7 +159,7 @@ new CliCommand('command')
    .withOptions()         // Register options
    .withSubCommands()     // Register subcommands
    .withHelpHandler()     // Custom handling of the --help flag
-   .parse()               // Generate { args, opts, extra } from process.argv
+   .parse()               // Generate { args, opts, extra } from process.argv, run onParse() hooks
    .process()             // Run parse(), hooks, and call command handler
    .help()                // Call the helpHandler
    .dump()                // Dump the command description to an object (useful for documentation)
@@ -419,19 +419,15 @@ Options:
 ## Validators
 Options and arguments can be assigned validators that are called on `.process()`. 
 A validator has the following signature: 
-```
+```typescript
 type Validator = (value: any, parsed: { args, opts, extra }) => string | boolean | Promise<string | boolean>
 ```
 
-The `value` argument is the value assigned to the option or argument. 
+1. The `value` argument is the value assigned to the option or argument. 
+2. The `parsed` argument is the result of `.parsed()`; the result of parsing the command line arguments.
 
-The `parsed` argument is the result of `.parsed()`; the result of parsing the command line arguments.
-
-If a validator returns `true`, the value is interpreted as valid. 
-
-Otherwise, if the validator returns `false`, a `ValidationError` is thrown with a default error message.
-
-If the validator returns a string, that string is used as the error message.
+If a validator returns `true`, the value is interpreted as valid. Otherwise, if the validator returns `false`, a `ValidationError` is thrown with a default error message.
+- If the validator returns a string, that string is used as the error message.
 
 ```typescript
 new CliCommand('build')
@@ -445,9 +441,146 @@ new CliCommand('build')
 ```
 
 ## Hooks
+It can be useful to intercept an option or argument before it's passed to the command handler.
+To do this, we can use `onParse()` and `onProcess()` hooks on both options and arguments. 
+
 ### onParse()
+When registered on an option or argument, an `onParse()` hook is called immediately when that argument or option is parsed from the command line. 
+This is useful for implementing interrupting flags such as `--help`, `--version`, and so on. 
+
+An `OnParseHook` has the following signature: 
+```typescript
+type OnParseHook = (value: any, parsed: { args, opts, extra }) => void
+```
+
+1. The `value` argument is the value assigned to the option or argument.
+2. The `parsed` argument is what the `.parse()` method has parsed so far. Note that this object may not be complete when the hook is invoked.
+
+```typescript
+new CliCommand('build')
+   .withOptions({ name: ['-v', '--version'], onParse: (value, parsed) => {
+      console.log(version)
+      process.exit()
+   }})
+```
+
 ### onProcess()
+Contrary to `onParse()` hooks, `onProcess()` hooks are run after `parse()` has finished. 
+
+Hooks also allow you to change the value of an option or argument at processing time, before the command handler is invoked.
+This can be very useful for designing "user-proof" CLIs that prompt the users for the information they need in a nice looking and robust manner. 
+An `OnProcessHook` has the following signature: 
+```typescript
+type OnProcessHook = (value: any, parsed: { args, opts, extra }, assign: (value: any) => Promise<void>) => void | Promise<void>
+```
+1. The `value` argument is the value assigned to the option or argument
+2. The `parsed` argument is the result of `parse()`
+3. The `assign` argument is a function that, when called with a new value:
+   1. Runs the value through the option/argument validator (if one exists)
+   2. Assigns the value to the option/argument
+   
+```typescript
+new CliCommadn('build')
+   .withArguments({ name: 'address', onProcess: async (value, parsed, assign) => {
+      if (value === undefined) {
+         const address = await prompts.Prompt('Please enter your address')
+         await assign(address)  // Validate and assign
+      }
+   }})
+```
+
 ## Generating documentation
+The `CliCommand.dump()` method dumps the entire command (and its subcommands) to an easily readable object of type `CommandDefinition`. This is useful for generating documentation.
+
+A `CommandDefinition` has the following signature: 
+```typescript
+export type CommandDefinition = {
+  name: string,
+  description?: string,
+  opts: OptionDefinition[],
+  args: ArgumentDefinition[],
+  subCommands: CommandDefinition[]
+}
+
+type OptionDefinition = {
+  name: [string, string],
+  args: ArgumentDefinition[],
+  description?: string,
+  required?: boolean,
+  negatable?: boolean,
+  defaultValue?: any
+}
+
+type ArgumentDefinition = {
+  name: string,
+  description?: string,
+  required?: boolean,
+  defaultValue?: any,
+  variadic?: boolean
+}
+```
+
+When printing the `help` text, this is done completely from the `CommandDefinition` objects. 
+While out of scope for this specific package, one could dream of a package that could take a `CommandDefinition` object and generate a nice looking documentation webapge :eyes:
+
+Here's an example of a command dump:
+
+```typescript
+const cmd = new CliCommand('build')
+   .withDescription('Build a home')
+   .withArguments({ name: 'address', required: true })
+   .withOptions(
+      { name: ['-r', '--residents'], required: false, args: [ {name: 'residents', variadic: true} ] },
+      { name: ['-d', '--doors'], defaultValue: 1 }
+   )
+   
+console.log(cmd.dump())
+```
+Produces: 
+```typescript
+{
+  "name": "build",
+  "description": "Build a home",
+  "opts": [
+    {
+      "name": [
+        "-h",
+        "--help"
+      ],
+      "description": "Display help for command",
+      "args": []
+    },
+    {
+      "name": [
+        "-r",
+        "--residents"
+      ],
+      "required": false,
+      "args": [
+        {
+          "name": "residents",
+          "variadic": true
+        }
+      ]
+    },
+    {
+      "name": [
+        "-d",
+        "--doors"
+      ],
+      "args": [],
+      "defaultValue": 1
+    }
+  ],
+  "args": [
+    {
+      "name": "address",
+      "required": true
+    }
+  ],
+  "subCommands": []
+}
+```
 ## Custom help handlers
 ## Custom exception handling
 
