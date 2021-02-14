@@ -36,6 +36,9 @@ const formatOptions = (opts: OptionDefinition[]): string => {
     if (opt.args.length) {
       optString += ` ${formatArguments(opt.args)}`
     }
+    if (opt.negatable) {
+      optString += ` (${getNegatedFlag(opt.name[1])})`
+    }
     if (optString.length > maxOptionLength) {
       maxOptionLength = optString.length
     }
@@ -46,9 +49,7 @@ const formatOptions = (opts: OptionDefinition[]): string => {
     const opt = opts[i]
     let optString = optStrings[i]
     optString = padToLength(optString, maxOptionLength + padding)
-    if (opt.negatable) {
-      optString += ` (${getNegatedFlag(opt.name[1])})`
-    }
+
     if (opt.description) {
       optString += ` ${opt.description}`
     }
