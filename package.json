@@ -1,6 +1,6 @@
 {
   "name": "cilly",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "The last library you'll ever need for building intuitive, robust and flexible CLI tools with Node.js and TypeScript.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
