@@ -8,6 +8,7 @@ const SHORT_OPTION_NAME_SYNTAX = new RegExp(`(${DASHES(1)}${OPTION_NAME_SYNTAX.s
 const LONG_OPTION_NAME_SYNTAX = new RegExp(`(${DASHES(2)}${OPTION_NAME_SYNTAX.source})`)
 const REQUIRED_VALUE_SYNTAX = new RegExp(`(${WHITESPACE.source}<${VARIADIC_SYNTAX.source}?${OPTION_NAME_SYNTAX.source}>)`)
 const OPTIONAL_VALUE_SYNTAX = new RegExp(`(${WHITESPACE.source}\\[${VARIADIC_SYNTAX.source}?${OPTION_NAME_SYNTAX.source}\\])`)
+const OPTION_ASSIGNMENT = new RegExp(`(${OPTION_NAME_SYNTAX.source})`)
 const OPTION_SIGNATURE_SYNTAX = new RegExp(
   `^${SHORT_OPTION_NAME_SYNTAX.source},${WHITESPACE.source}${LONG_OPTION_NAME_SYNTAX.source}` +
   `(${REQUIRED_VALUE_SYNTAX.source}|${OPTIONAL_VALUE_SYNTAX.source})*$`)
@@ -25,6 +26,9 @@ const isRequired = (option: string): boolean => matchEntireString(REQUIRED_VALUE
 const isOptional = (option: string): boolean => matchEntireString(OPTIONAL_VALUE_SYNTAX).test(option)
 const isValidCliOptionSignature = (signature: string): boolean => matchEntireString(OPTION_SIGNATURE_SYNTAX).test(signature)
 const isVariadicTerminator = (token: string): boolean => token === '--'
+const isOptionAssignment = (token: string): boolean => {
+  return token.includes('=') && isOptionName(token.split('=')[0])
+}
 /**
  * Capitalizes the first letter in a string
  * @param name The string to capitalize
@@ -65,5 +69,6 @@ export const TokenParser = {
   isValidCliOptionSignature,
   capitalize,
   toCamelCase,
-  isVariadicTerminator
+  isVariadicTerminator,
+  isOptionAssignment
 }

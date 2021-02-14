@@ -226,7 +226,7 @@ export class CliCommand {
    */
   public parse(processArgs: string[], opts: { raw?: boolean } = {}): ParsedInput {
     // The "queue" of arguments, cloned so we don't modify the original
-    const q = [...opts.raw ? processArgs : processArgs.slice(2)]
+    const q = this.splitOptionAssignments([...opts.raw ? processArgs : processArgs.slice(2)])
 
     // Parse the input
     while (q.length) {
@@ -581,5 +581,25 @@ export class CliCommand {
     } else {
       return Object.keys(obj).length === 0
     }
+  }
+
+  /**
+   * Splits all --option=value strings into ['--option', 'value'] so they
+   * can be parsed consistently
+   * @param processArgs process.argv
+   */
+  private splitOptionAssignments(processArgs: string[]): string[] {
+    const splitArgs: string[] = []
+    for (const arg of processArgs) {
+      if (TokenParser.isOptionAssignment(arg)) {
+        const [option, value] = arg.split('=')
+        splitArgs.push(option)
+        splitArgs.push(value)
+      } else {
+        splitArgs.push(arg)
+      }
+    }
+
+    return splitArgs
   }
 }

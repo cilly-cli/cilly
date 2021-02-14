@@ -203,4 +203,15 @@ describe('src/token-parser/token-parser.ts', () => {
       expect(TokenParser.isVariadicTerminator('--stop')).to.be.false
     })
   })
+  describe('Parser.isOptionAssignment', () => {
+    it('should detect long option name assignments', () => {
+      expect(TokenParser.isOptionAssignment('--option=value')).is.true
+      expect(TokenParser.isOptionAssignment('option=value')).is.false
+    })
+    it('should detect short option name assignments', () => {
+      expect(TokenParser.isOptionAssignment('-o=value')).is.true
+      expect(TokenParser.isOptionAssignment('-o=v')).is.true
+      expect(TokenParser.isOptionAssignment('o=v')).is.false
+    })
+  })
 })

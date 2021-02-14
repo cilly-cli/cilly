@@ -700,4 +700,11 @@ describe('CliCommand', () => {
       expect(helpHandler.called).to.be.true
     })
   })
+  describe('splitOptionAssignments()', () => {
+    const splitOptionAssingments = (new CliCommand('test') as any).splitOptionAssignments
+    it('should correctly split option assignments', () => {
+      expect(splitOptionAssingments(['--option=anders', '-o=ba', '--asd', 'dsa']))
+        .to.eql(['--option', 'anders', '-o', 'ba', '--asd', 'dsa'])
+    })
+  })
 })
