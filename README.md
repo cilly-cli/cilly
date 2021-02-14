@@ -26,7 +26,7 @@ The last library you'll ever need for building intuitive, robust and flexible CL
       - [onProcess()](#onprocess)
    - [Generating documentation](#generating-documentation)
    - [Custom help handlers](#custom-help-handlers)
-   - [Custom exception handling](#custom-exception-handling)
+   - [Exception handling](#exception-handling)
 
 # Installation
 ```
@@ -496,6 +496,7 @@ A `CommandDefinition` has the following signature:
 ```typescript
 export type CommandDefinition = {
   name: string,
+  version: string,
   description?: string,
   opts: OptionDefinition[],
   args: ArgumentDefinition[],
@@ -521,7 +522,7 @@ type ArgumentDefinition = {
 ```
 
 When printing the `help` text, this is done completely from the `CommandDefinition` objects. 
-While out of scope for this specific package, one could dream of a package that could take a `CommandDefinition` object and generate a nice looking documentation webapge :eyes:
+While out of scope for this specific package, one could dream of a package that could take a `CommandDefinition` object and generate a nice looking documentation page :eyes:
 
 Here's an example of a command dump:
 
@@ -582,5 +583,32 @@ Produces:
 }
 ```
 ## Custom help handlers
-## Custom exception handling
+You can use the `withHelpHandler()` method to override the default `help` text. 
+```typescript
+new CliCommand('build')
+   .withHelpHandler((command: CommandDefinition) => {
+      console.log(`This is the documentation for ${command.name} (${command.definition})`)
+      ...
+      process.exit()
+   })
+```
 
+## Exception handling
+All exceptions thrown by `cilly` extend the `CillyException` class. If you want to catch each exception and handle them individually, here's the full list of exceptions thrown by `cilly`: 
+```typescript
+class CillyException extends Error
+class UnknownOptionException extends CillyException 
+class UnknownSubcommandException extends CillyException 
+class InvalidNumOptionNamesException extends CillyException 
+class InvalidShortOptionNameException extends CillyException 
+class InvalidLongOptionNameException extends CillyException
+class InvalidCommandNameException extends CillyException
+class InvalidArgumentNameException extends CillyException
+class ExpectedButGotException extends CillyException
+class NoCommandHandlerException extends CillyException
+class DuplicateArgumentException extends CillyException
+class DuplicateOptionException extends CillyException
+class DuplicateCommandNameException extends CillyException
+class NoArgsAndSubCommandsException extends CillyException
+class ValidationError extends CillyException
+```
