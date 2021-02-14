@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "cilly"
+    "url": "https://github.com/cilly-cli/cilly"
   },
   "keywords": [
     "cli",
