@@ -10,11 +10,16 @@ The last library you'll ever need for building intuitive, robust and flexible CL
 - [Installation](#installation)
 - [Basic usage](#basic-usage)
 - [Documentation](#documentation)
-   - [Arguments](#arguments)
-   - [Options](#options)
    - [Commands](#commands)
+      - [parse()](#parse)
+      - [process()](#process)
       - [Subcommands](#subcommands)
-      - [Option inheritance](#option-inheritance)
+         - [Option inheritance](#option-inheritance)
+   - [Arguments](#arguments)
+      - [Variadic arguments](#variadic-arguments)
+   - [Options](#options)
+      - [Option arguments](#option-arguments)
+      - [Negating flags](#negating-flags)
    - [Validators](#validators)
    - [Hooks](#hooks)
       - [onParse()](#onparse)
@@ -164,7 +169,7 @@ new CliCommand('command')
 The `parse()` method takes the command line arguments (`process.argv`) and parses it to produce the `{args, opts, extra}` objects passed to handlers.
 
 The `parse()` method does not call any hooks and does not invoke command handlers, and thus does not require a command handler to be defined.
-```
+```typescript
 const cmd = new CliCommand('build')
    .withArguments({ name: 'address' })
    .withOptions({ name: ['-g', '--garage'], negatable: true })
@@ -172,9 +177,25 @@ const cmd = new CliCommand('build')
 const { args, opts, extra } = cmd.parse(process.argv)
 ```
 
+#### Extra
+All arguments that cannot be parsed are put in the `extra` argument to command handlers.
+If desired, a command can choose to to treat unknown options similarly by setting the `consumeUnknownOpts` flag: 
+```typescript
+const cmd = new CliCommand('build', { consumeUnknownOpts: true })
+
+const { args, opts, extra } = cmd.parse(process.argv)
+console.log(extra)
+```
+With the input: 
+```
+build --an --option --that --isnt --defined
+```
+
+The above would print `['--an', '--option', '--that', '--isnt', '--defined']`
+
 ### process()
 The `process()` method (asynchronous) calls `parse()`, runs argument and options hooks, validators, and invokes the appropriate command handler with the output of `parse()`. The result of `await process()` is whatever the command handler returns. 
-```
+```typescript
 const cmd = new CliCommand('build')
    .withArguments({ name: 'address' })
    .withOptions({ name: ['-g', '--garage'], negatable: true })
@@ -185,6 +206,51 @@ const cmd = new CliCommand('build')
    })
 
 const house = await cmd.process(process.argv)
+```
+
+### Subcommands
+Commands can have an arbitrary number of subcommands, allowing developers to decouple their command handling logic.
+These are registered with the `withSubCommands()` method: 
+```typescript
+new CliCommand('build')
+   .withSubCommands(
+      new CliCommand('house')...,
+      new CliCommand('apartment')...,
+   )
+```
+
+A command **cannot** have both arguments and subcommands. This is because subcommands are invoked be essentially passing command names as arguments, and there would be no good way to tell the two apart. 
+
+Subcommands are displayed in the help text: 
+```
+Usage: build [options]
+
+Options: 
+  ...
+  
+Commands: 
+  house <address> [state] [options]
+  apartment <address> [options]
+```
+
+#### Option inheritance
+Contrary to `commander.js`, subcommands can share options and arguments in the parent command(s).
+By setting the `inheritOpts` flag to true when constructing the command, the command inherits all options from the parent command:
+```typescript
+new CliCommand('build')
+   .withOptions({ name: ['-vb', '--verbose'] })
+   .withSubCommands(
+      new CliCommand('house', { inheritOpts: true })
+         .withOptions({ name: ['-r', '--rooms'] })
+   )
+```
+
+The `opts` object in the `house` command handler will contain both `verbose` and `rooms`: 
+```typescript
+opts: {
+   verbose: ...,
+   rooms: ...
+}
 ```
 
 ## Arguments
@@ -349,66 +415,6 @@ Options:
   -p, --parents (--no-parents)     Name of (living) parents
 ```
 
-## Extra
-All arguments that cannot be parsed are put in the `extra` argument to command handlers.
-If desired, a command can choose to to treat unknown options similarly by setting the `consumeUnknownOpts` flag: 
-```typescript
-new CliCommand('build', { consumeUnknownOpts: true })
-   .withHandler((args, opts, extra) => {
-      console.log(extra)
-   })
-```
-With the input: 
-```
-build --an --option --that --isnt --defined
-```
-
-The handler would print `['--an', '--option', '--that', '--isnt', '--defined']`
-
-### Subcommands
-Commands can have an arbitrary number of subcommands, allowing developers to decouple their command handling logic.
-These are registered with the `withSubCommands()` method: 
-```typescript
-new CliCommand('build')
-   .withSubCommands(
-      new CliCommand('house')...,
-      new CliCommand('apartment')...,
-   )
-```
-
-A command **cannot** have both arguments and subcommands. This is because subcommands are invoked be essentially passing command names as arguments, and there would be no good way to tell the two apart. 
-
-Subcommands are displayed in the help text: 
-```
-Usage: build [options]
-
-Options: 
-  ...
-  
-Commands: 
-  house <address> [state] [options]
-  apartment <address> [options]
-```
-
-### Option inheritance
-Contrary to `commander.js`, subcommands can share options and arguments in the parent command(s).
-By setting the `inheritOpts` flag to true when constructing the command, the command inherits all options from the parent command:
-```typescript
-new CliCommand('build')
-   .withOptions({ name: ['-vb', '--verbose'] })
-   .withSubCommands(
-      new CliCommand('house', { inheritOpts: true })
-         .withOptions({ name: ['-r', '--rooms'] })
-   )
-```
-
-The `opts` object in the `house` command handler will contain both `verbose` and `rooms`: 
-```typescript
-opts: {
-   verbose: ...,
-   rooms: ...
-}
-```
 
 ## Validators
 ## Hooks
