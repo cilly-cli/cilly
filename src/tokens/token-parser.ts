@@ -24,7 +24,7 @@ const isVariadic = (option: string): boolean => VARIADIC_SYNTAX.test(option)
 const isRequired = (option: string): boolean => matchEntireString(REQUIRED_VALUE_SYNTAX).test(option)
 const isOptional = (option: string): boolean => matchEntireString(OPTIONAL_VALUE_SYNTAX).test(option)
 const isValidCliOptionSignature = (signature: string): boolean => matchEntireString(OPTION_SIGNATURE_SYNTAX).test(signature)
-
+const isVariadicTerminator = (token: string): boolean => token === '--'
 /**
  * Capitalizes the first letter in a string
  * @param name The string to capitalize
@@ -64,5 +64,6 @@ export const TokenParser = {
   isOptional,
   isValidCliOptionSignature,
   capitalize,
-  toCamelCase
+  toCamelCase,
+  isVariadicTerminator
 }

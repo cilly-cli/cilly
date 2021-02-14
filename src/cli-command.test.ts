@@ -224,6 +224,32 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should correctly parse terminated variadic arguments', () => {
+      const cmd = new CliCommand('test')
+        .withArguments(
+          { name: 'files', variadic: true },
+          { name: 'dirs', variadic: true }
+        )
+
+      const parsed = cmd.parse(['test', '1', '2', '3', '--', '4', '5', '6'], { raw: true })
+      expect(parsed.args.files).to.eql(['1', '2', '3'])
+      expect(parsed.args.dirs).to.eql(['4', '5', '6'])
+    })
+    it('should correctly parse terminated variadic option arguments', () => {
+      const cmd = new CliCommand('test')
+        .withOptions(
+          {
+            name: ['-e', '--enfo'], args: [
+              { name: 'files', variadic: true },
+              { name: 'dirs', variadic: true }
+            ]
+          }
+        )
+
+      const parsed = cmd.parse(['test', '-e', '1', '2', '3', '--', '4', '5', '6'], { raw: true })
+      expect(parsed.opts.enfo.files).to.eql(['1', '2', '3'])
+      expect(parsed.opts.enfo.dirs).to.eql(['4', '5', '6'])
+    })
     it('should throw an error when duplicate options are passed', () => {
       const cmd = new CliCommand('test').withOptions({ name: ['-s', '--same'] })
       const throwing = (): void => { cmd.parse(['test', '--same', '--same'], { raw: true }) }

@@ -455,6 +455,11 @@ export class CliCommand {
     const args: string[] = []
 
     while (q[0] && !TokenParser.isOptionName(q[0])) {
+      if (TokenParser.isVariadicTerminator(q[0])) {
+        q.shift()
+        break
+      }
+
       args.push(q[0])
       q.shift()
     }
