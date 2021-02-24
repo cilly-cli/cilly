@@ -143,6 +143,15 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should be able to parse inherited short option flags', () => {
+      const cmd = new CliCommand('first')
+        .withSubCommands(new CliCommand('second')
+          .withOptions({ name: ['-rc', '--run-config'], args: [{ name: 'path', required: true }] })
+          .withSubCommands(new CliCommand('third', { inheritOpts: true })
+            .withOptions({ name: ['-o', '--other'] })))
+
+      expect(() => { cmd.parse(['second', 'third', '-rc', 'rc.json'], { raw: true }) }).to.not.throw(UnknownOptionException)
+    })
     it('should throw when an expected option argument is not provided', () => {
       const cmd = new CliCommand('test')
         .withOptions({ name: ['-n', '--name'], args: [{ name: 'name', required: true }] })
@@ -526,30 +535,6 @@ describe('CliCommand', () => {
       expect(throwing).to.throw(DuplicateArgumentException)
     })
   })
-  describe('withOptions()', () => {
-    it('should throw an exception when the short name already exists', () => {
-      const throwing = (): void => {
-        new CliCommand('test')
-          .withOptions(
-            { name: ['-s', '--same'] },
-            { name: ['-s', '--not-same'] }
-          )
-      }
-
-      expect(throwing).to.throw(DuplicateOptionException)
-    })
-    it('should throw an exception when the long name already exists', () => {
-      const throwing = (): void => {
-        new CliCommand('test')
-          .withOptions(
-            { name: ['-s', '--same'] },
-            { name: ['-n', '--same'] }
-          )
-      }
-
-      expect(throwing).to.throw(DuplicateOptionException)
-    })
-  })
   describe('withSubCommands()', () => {
     it('should let subcommand inherit all options if inheritOptions is true', () => {
       const parent = new CliCommand('parent').withOptions(
@@ -639,6 +624,14 @@ describe('CliCommand', () => {
                 args: []
               },
               {
+                name: ['-d', '--dry-run'],
+                required: false,
+                negatable: undefined,
+                description: undefined,
+                defaultValue: true,
+                args: []
+              },
+              {
                 name: ['-f', '--files'],
                 negatable: undefined,
                 description: undefined,
@@ -653,14 +646,6 @@ describe('CliCommand', () => {
                     description: undefined
                   }
                 ]
-              },
-              {
-                name: ['-d', '--dry-run'],
-                required: false,
-                negatable: undefined,
-                description: undefined,
-                defaultValue: true,
-                args: []
               }
             ],
             subCommands: []

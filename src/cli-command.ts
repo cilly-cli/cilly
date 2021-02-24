@@ -143,12 +143,7 @@ export class CliCommand {
       this.checkOption(option)
       const name = this.getName(option)
       const short = this.getShortName(option)
-      if (name in this.opts) {
-        throw new DuplicateOptionException(name, this.dump())
-      }
-      if (short in this.shortNameMap) {
-        throw new DuplicateOptionException(short, this.dump())
-      }
+
       if (option.negatable) {
         const negatedFlag = getNegatedFlag(option.name[1])
         this.negatableOptsMap[negatedFlag] = option
@@ -165,7 +160,7 @@ export class CliCommand {
     for (const command of commands) {
       this.checkSubCommand(command)
       if (command.inheritOpts) {
-        command.opts = { ...this.opts, ...command.opts }
+        command.withOptions(...Object.values(this.opts))
       }
       this.subCommands[command.name] = command
     }
@@ -250,7 +245,6 @@ export class CliCommand {
         this.parsed.opts[name] = value
       } else if (!this.isEmpty(this.args)) {
         const parsed = this.consumeArgument(this.args.shift(), q)
-        if (!parsed) continue
         const [name, value] = parsed
         this.parsed.args[name] = value
       } else if (!this.isEmpty(this.subCommands)) {
