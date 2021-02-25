@@ -151,6 +151,12 @@ export class CliCommand {
 
       this.opts[name] = option
       this.shortNameMap[short] = name
+
+      for (const [, subCommand] of Object.entries(this.subCommands)) {
+        if (subCommand.inheritOpts) {
+          this.shareOptionsWith(subCommand)
+        }
+      }
     }
 
     return this
@@ -160,7 +166,7 @@ export class CliCommand {
     for (const command of commands) {
       this.checkSubCommand(command)
       if (command.inheritOpts) {
-        command.withOptions(...Object.values(this.opts))
+        this.shareOptionsWith(command)
       }
       this.subCommands[command.name] = command
     }
@@ -597,5 +603,13 @@ export class CliCommand {
     }
 
     return splitArgs
+  }
+
+  private shareOptionsWith(command: CliCommand): void {
+    const filterOptions = ['help']
+    const filteredOptions = Object.entries(this.opts)
+      .filter(([name, opt]) => !filterOptions.includes(name))
+      .map(([name, opt]) => opt)
+    command.withOptions(...filteredOptions)
   }
 }

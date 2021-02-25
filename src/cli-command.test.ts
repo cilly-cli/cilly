@@ -143,6 +143,20 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should call the correct help handler when parsing --help in subcommands', () => {
+      const firstHelp = spy()
+      const secondHelp = spy()
+      const thirdHelp = spy()
+
+      const cmd = new CliCommand('first').withHelpHandler(firstHelp)
+        .withSubCommands(new CliCommand('second').withHelpHandler(firstHelp)
+          .withSubCommands(new CliCommand('third', { inheritOpts: true }).withHelpHandler(thirdHelp)))
+
+      cmd.parse(['second', 'third', '--help'], { raw: true })
+      expect(firstHelp.called).to.be.false
+      expect(secondHelp.called).to.be.false
+      expect(thirdHelp.called).to.be.true
+    })
     it('should be able to parse inherited short option flags', () => {
       const cmd = new CliCommand('first')
         .withSubCommands(new CliCommand('second')
@@ -536,6 +550,41 @@ describe('CliCommand', () => {
     })
   })
   describe('withSubCommands()', () => {
+    it('should let 3rd level subcommands have access to grandparent options', () => {
+      const me = new CliCommand('me', { inheritOpts: true })
+        .withOptions({ name: ['-m', '--me'] })
+      const pa = new CliCommand('pa', { inheritOpts: true })
+        .withOptions({ name: ['-p', '--pa'] })
+        .withSubCommands(me)
+      const grandpa = new CliCommand('grandpa')
+        .withOptions({ name: ['-g', '--grandpa'] })
+        .withSubCommands(pa)
+
+      expect((me as any).opts).to.haveOwnProperty('me')
+      expect((me as any).opts).to.haveOwnProperty('pa')
+      expect((me as any).opts).to.haveOwnProperty('grandpa')
+
+      expect((pa as any).opts).to.haveOwnProperty('pa')
+      expect((pa as any).opts).to.haveOwnProperty('grandpa')
+    })
+    it('should not inherit the parents --help option when inheritOpts is true', () => {
+      const parentHelp = spy()
+      const childHelp = spy()
+
+      const child = new CliCommand('child', { inheritOpts: true })
+        .withOptions({ name: ['-c', '--child'] })
+        .withHelpHandler(childHelp)
+      const parent = new CliCommand('parent')
+        .withHelpHandler(parentHelp)
+        .withOptions({ name: ['-p', '--parent'] })
+        .withSubCommands(child)
+
+      const childHelpOption = (child as any).opts.help
+      childHelpOption.onParse()
+
+      expect(childHelp.called).to.be.true
+      expect(parentHelp.called).to.be.false
+    })
     it('should let subcommand inherit all options if inheritOptions is true', () => {
       const parent = new CliCommand('parent').withOptions(
         { name: ['-s', '--short'] },
