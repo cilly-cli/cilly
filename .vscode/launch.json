@@ -10,7 +10,7 @@
       "preLaunchTask": "tsc: build - tsconfig.json",
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "autoAttachChildProcesses": true,
-      "args": ["demo", "--help"]
+      "args": ["todd", "--help"]
     },
     {
       "type": "node",

@@ -50,14 +50,14 @@ const formatOptions = (opts: OptionDefinition[]): string => {
     let optString = optStrings[i]
     optString = padToLength(optString, maxOptionLength + padding)
 
+    if (opt.required) {
+      optString += ' (required)'
+    }
     if (opt.description) {
       optString += ` ${opt.description}`
     }
     if (opt.defaultValue !== undefined) {
       optString += ` (default: ${JSON.stringify(opt.defaultValue)})`
-    }
-    if (opt.required) {
-      optString += '(required)'
     }
     optStrings[i] = optString
   }

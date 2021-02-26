@@ -276,12 +276,12 @@ export class CliCommand {
     const command = this.getCommand(opts.raw ? processArgs : processArgs.slice(2))
 
     // Run hooks
-    await this.runOnProcessHooks(parsed, 'args', this.argsMap)
-    await this.runOnProcessHooks(parsed, 'opts', this.opts)
+    await command.runOnProcessHooks(parsed, 'args', this.argsMap)
+    await command.runOnProcessHooks(parsed, 'opts', this.opts)
 
     // Run validators
-    await this.runValidators(parsed, 'args', this.argsMap)
-    await this.runValidators(parsed, 'opts', this.opts)
+    await command.runValidators(parsed, 'args', this.argsMap)
+    await command.runValidators(parsed, 'opts', this.opts)
 
     // Run handler
     if (command.handler !== undefined) {
