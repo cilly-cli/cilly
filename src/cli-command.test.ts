@@ -29,7 +29,22 @@ describe('CliCommand', () => {
         .withOptions({ name: ['-v', '--verbose'], onProcess: otherHook })
         .withHandler(() => { null })
 
-      await cmd.process(['test'])
+      await cmd.process(['test'], { raw: true })
+      expect(hook.called).to.be.true
+      expect(otherHook.called).to.be.true
+    })
+    it('should invoke appropriate hooks in subcommands', async () => {
+      const hook = spy(() => { null })
+      const otherHook = spy(() => { null })
+      const cmd = new CliCommand('test')
+        .withHandler(() => { null })
+        .withSubCommands(new CliCommand('othertest')
+          .withArguments({ name: 'arg', onProcess: hook })
+          .withOptions({ name: ['-v', '--verbose'], onProcess: otherHook })
+          .withHandler(() => { null })
+        )
+
+      await cmd.process(['test', 'othertest'], { raw: true })
       expect(hook.called).to.be.true
       expect(otherHook.called).to.be.true
     })
