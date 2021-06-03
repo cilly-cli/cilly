@@ -185,7 +185,8 @@ new CliCommand('command')
 ### parse()
 The `parse()` method takes the command line arguments (`process.argv`) and parses it to produce the `{args, opts, extra}` objects passed to handlers.
 
-The `parse()` method does not call any hooks and does not invoke command handlers, and thus does not require a command handler to be defined.
+The `parse()` method calls `onParse()` hooks for all arguments and options immediately as they are parsed.
+It does not call `onProcess()` hooks, validators or command handlers, and thus does not require a command handler to be defined.
 ```typescript
 const cmd = new CliCommand('build')
    .withArguments({ name: 'address' })
@@ -211,7 +212,7 @@ build --an --option --that --isnt --defined
 The above would print `['--an', '--option', '--that', '--isnt', '--defined']`
 
 ### process()
-The `process()` method (asynchronous) calls `parse()`, runs argument and options hooks, validators, and invokes the appropriate command handler with the output of `parse()`. The result of `await process()` is whatever the command handler returns. 
+The `process()` method (asynchronous) calls `parse()`, runs `onProcess()` argument and options hooks, validators, and invokes the appropriate command handler with the output of `parse()`. The result of `await process()` is whatever the command handler returns. 
 ```typescript
 const cmd = new CliCommand('build')
    .withArguments({ name: 'address' })

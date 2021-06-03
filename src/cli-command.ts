@@ -222,7 +222,8 @@ export class CliCommand {
 
   /**
    * Parses the process arguments and generates args, opts, and extra objects.
-   * Does not invoke command handlers and does not invoke hooks or validators.
+   * Invokes onParse() hooks on all arguments and options. Does not invoke
+   * onProcess() hooks, validators, or command handlers.
    * @param processArgs The process arguments (typically process.argv)
    * @param opts parse() automatically strips the first two arguments from its input.
    * To prevent this, set opts.stripExecScript to false.
