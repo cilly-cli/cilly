@@ -729,6 +729,35 @@ describe('CliCommand', () => {
       await expect(cmd.process(['test', '--help'], { raw: true })).to.eventually.be.rejectedWith(CillyException)
     })
   })
+  describe('withHandler()', () => {
+    it('should assign the correct handler to the command object', () => {
+      const handler = spy(() => { null })
+      const cmd = new CliCommand('test').withHandler(handler)
+        ; (cmd as any).handler()
+      expect(handler.called).to.be.true
+    })
+    it('should call the handler function with the provided context', async () => {
+      const context = { name: 'I am a context object' }
+
+      function handler(): any {
+        return this
+      }
+
+      const cmd = new CliCommand('test').withHandler(handler, context)
+      const callingContext = await cmd.process(['test'], { raw: true })
+      expect(callingContext).to.equal(context)
+    })
+    it('should call the handler function with the CliCommand as the context if no context is provided', async () => {
+
+      function handler(): any {
+        return this
+      }
+
+      const cmd = new CliCommand('test').withHandler(handler)
+      const callingContext = await cmd.process(['test'], { raw: true })
+      expect(callingContext).to.equal(cmd)
+    })
+  })
   describe('withVersion()', () => {
     it('should assign the version', () => {
       const cmd = new CliCommand('test').withVersion('1.2.3')
@@ -739,6 +768,16 @@ describe('CliCommand', () => {
       const cmd = new CliCommand('test').withVersion('1.2.3', handler)
       cmd.parse(['test', '--version'], { raw: true })
       expect(handler.called).to.be.true
+    })
+  })
+  describe('withOptions()', () => {
+    it('should share options with subcommand if one is defined to inherit', () => {
+      const child = new CliCommand('child', { inheritOpts: true })
+      const parent = new CliCommand('parent')
+        .withSubCommands(child)
+        .withOptions({ name: ['-t', '--test'] })
+
+      expect((child as any).opts['test']).to.exist
     })
   })
   describe('help()', () => {

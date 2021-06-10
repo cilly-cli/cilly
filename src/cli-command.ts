@@ -77,6 +77,7 @@ export class CliCommand {
   description: string
 
   private handler?: CommandHandler
+  private handlerContext?: any
   private helpHandler: (command: CommandDefinition) => void
   private inheritOpts?: boolean
   private consumeUnknownOpts?: boolean
@@ -174,8 +175,22 @@ export class CliCommand {
     return this
   }
 
-  public withHandler(handler: CommandHandler): CliCommand {
+  /**
+   * Registers the handler that will be called when command.process() finishes.
+   * The arguments provided to the handler will be the result of command.parse().
+   * By default, the calling context of the handler is the CliCommand object.
+   * If needed, a calling context can be provided which will be bound to the handler
+   * before invoking it.
+   * @param handler The handler to invoke when .process() finishes
+   * @param context (Optional) the calling context to bind to the handler before invoking
+  */
+  public withHandler(handler: CommandHandler, context?: any): CliCommand {
     this.handler = handler
+
+    if (context) {
+      this.handlerContext = context
+    }
+
     return this
   }
 
@@ -286,6 +301,9 @@ export class CliCommand {
 
     // Run handler
     if (command.handler !== undefined) {
+      if (command.handlerContext !== undefined) {
+        return command.handler.bind(command.handlerContext)(parsed.args, parsed.opts, parsed.extra)
+      }
       return command.handler(parsed.args, parsed.opts, parsed.extra)
     }
   }
