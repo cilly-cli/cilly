@@ -419,8 +419,10 @@ export class CliCommand {
     let optValue: OptionValue
 
     if (!opt.args) {
-      optValue = opt.defaultValue ?? true
+      // It's a boolean option flag, set it high
+      optValue = true
     } else {
+      // It's an option with arguments, parse each one
       optValue = {}
       for (const arg of opt.args) {
         const parsed = this.consumeArgument(arg, q)
@@ -460,7 +462,9 @@ export class CliCommand {
         argValue = q.shift()
       }
     } else {
-      if (arg.required) {
+      if (arg.variadic) {
+        argValue = []
+      } else if (arg.required) {
         throw new ExpectedButGotException(`a value for "${arg.name}"`, 'nothing')
       } else {
         argValue = arg.defaultValue ?? undefined
