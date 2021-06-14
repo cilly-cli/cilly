@@ -498,7 +498,7 @@ type OnProcessHook = (value: any, parsed: { args, opts, extra }, assign: (value:
    2. Assigns the value to the option/argument
    
 ```typescript
-new CliCommadn('build')
+new CliCommand('build')
    .withArguments({ name: 'address', onProcess: async (value, parsed, assign) => {
       if (value === undefined) {
          const address = await prompts.Prompt('Please enter your address')
