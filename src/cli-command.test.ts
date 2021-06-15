@@ -260,8 +260,6 @@ describe('CliCommand', () => {
         extra: []
       })
     })
-  })
-  describe('parse()', () => {
     it('should correctly parse terminated variadic arguments', () => {
       const cmd = new CliCommand('test')
         .withArguments(
@@ -396,7 +394,48 @@ describe('CliCommand', () => {
         extra: []
       })
     })
+    it('should not assign default value to boolean flags when they are passed', () => {
+      const cli = new CliCommand('test').withOptions({ name: ['-s', '--silent'], defaultValue: false })
+      const { opts } = cli.parse(['test', '--silent'], { raw: true })
+      expect(opts.silent).to.exist
+      expect(opts.silent).to.be.true
+    })
+    it('should assign default value to boolean flags when they are not passed', () => {
+      const cli = new CliCommand('test').withOptions({ name: ['-s', '--silent'], defaultValue: false })
+      const { opts } = cli.parse(['test'], { raw: true })
+      expect(opts.silent).to.exist
+      expect(opts.silent).to.be.false
+    })
+    it('should assign default value to options with arguments when the option is not passed', () => {
+      const cli = new CliCommand('test')
+        .withOptions({ name: ['-f', '--file'], args: [{ name: 'files' }], defaultValue: 'file.txt' })
+      const { opts } = cli.parse(['test', '--file', 'test.txt'], { raw: true })
+      expect(opts.file).to.exist
+      expect(opts.file).to.equal('test.txt')
+    })
+    it('should not assign default value to options with arguments when the option is passed', () => {
+      const cli = new CliCommand('test')
+        .withOptions({ name: ['-f', '--file'], args: [{ name: 'file' }], defaultValue: 'file.txt' })
+      const { opts } = cli.parse(['test'], { raw: true })
+      expect(opts.file).to.exist
+      expect(opts.file).to.equal('file.txt')
+    })
+    it('should not assign default value to options with variadic arguments when the option is passed', () => {
+      const cli = new CliCommand('test')
+        .withOptions({ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }], defaultValue: ['file.txt'] })
+      const { opts } = cli.parse(['test', '--files'], { raw: true })
+      expect(opts.files).to.exist
+      expect(opts.files).to.be.empty
+    })
+    it('should assign default value to options with variadic arguments when the option is not passed', () => {
+      const cli = new CliCommand('test')
+        .withOptions({ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }], defaultValue: ['file.txt'] })
+      const { opts } = cli.parse(['test'], { raw: true })
+      expect(opts.files).to.exist
+      expect(opts.files).to.eql(['file.txt'])
+    })
   })
+
   describe('isEmpty()', () => {
     const cli = new CliCommand('test')
     const isEmpty = (cli as any).isEmpty
@@ -795,48 +834,6 @@ describe('CliCommand', () => {
     it('should correctly split option assignments', () => {
       expect(splitOptionAssingments(['--option=anders', '-o=ba', '--asd', 'dsa']))
         .to.eql(['--option', 'anders', '-o', 'ba', '--asd', 'dsa'])
-    })
-  })
-  describe('onParse()', () => {
-    it('should not assign default value to boolean flags when they are passed', () => {
-      const cli = new CliCommand('test').withOptions({ name: ['-s', '--silent'], defaultValue: false })
-      const { opts } = cli.parse(['test', '--silent'], { raw: true })
-      expect(opts.silent).to.exist
-      expect(opts.silent).to.be.true
-    })
-    it('should assign default value to boolean flags when they are not passed', () => {
-      const cli = new CliCommand('test').withOptions({ name: ['-s', '--silent'], defaultValue: false })
-      const { opts } = cli.parse(['test'], { raw: true })
-      expect(opts.silent).to.exist
-      expect(opts.silent).to.be.false
-    })
-    it('should assign default value to options with arguments when the option is not passed', () => {
-      const cli = new CliCommand('test')
-        .withOptions({ name: ['-f', '--file'], args: [{ name: 'files' }], defaultValue: 'file.txt' })
-      const { opts } = cli.parse(['test', '--file', 'test.txt'], { raw: true })
-      expect(opts.file).to.exist
-      expect(opts.file).to.equal('test.txt')
-    })
-    it('should not assign default value to options with arguments when the option is passed', () => {
-      const cli = new CliCommand('test')
-        .withOptions({ name: ['-f', '--file'], args: [{ name: 'file' }], defaultValue: 'file.txt' })
-      const { opts } = cli.parse(['test'], { raw: true })
-      expect(opts.file).to.exist
-      expect(opts.file).to.equal('file.txt')
-    })
-    it('should not assign default value to options with variadic arguments when the option is passed', () => {
-      const cli = new CliCommand('test')
-        .withOptions({ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }], defaultValue: ['file.txt'] })
-      const { opts } = cli.parse(['test', '--files'], { raw: true })
-      expect(opts.files).to.exist
-      expect(opts.files).to.be.empty
-    })
-    it('should assign default value to options with variadic arguments when the option is not passed', () => {
-      const cli = new CliCommand('test')
-        .withOptions({ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }], defaultValue: ['file.txt'] })
-      const { opts } = cli.parse(['test'], { raw: true })
-      expect(opts.files).to.exist
-      expect(opts.files).to.eql(['file.txt'])
     })
   })
 })
