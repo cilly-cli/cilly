@@ -188,7 +188,7 @@ Options are named flags, e.g. `--option` that can also be assigned their own arg
 Commands are represented by `CliCommand` class instances.
 The command constructor has the following signature: 
 ```
-CliCommand(name: string, opts?: { inheritOpts?: boolean, consumeUnknownOpts?: boolean })
+CliCommand(name: string, opts?: { inheritOpts?: boolean, consumeUnknownArgs?: boolean consumeUnknownOpts?: boolean })
 ```
 
 The `CliCommand` API looks as follows: 
@@ -226,7 +226,8 @@ const {
 ```
 
 #### Extra
-All arguments that cannot be parsed are put in the `extra` argument to command handlers.
+All arguments that cannot be parsed are put in the `extra` argument to command handlers by default.
+To throw an exception when an unexpected argument is received, set `new CliCommand(name, { consumeUnknownArgs: false })`.
 If desired, a command can choose to to treat unknown options similarly by setting the `consumeUnknownOpts` flag: 
 ```typescript
 const cmd = new CliCommand('build', { consumeUnknownOpts: true })
