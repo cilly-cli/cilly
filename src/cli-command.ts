@@ -1,5 +1,5 @@
 import { showHelp } from './presentation'
-import { DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, ExpectedButGotException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
+import { DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, ExpectedButGotException, UnknownOptionException, UnknownSubcommandException, ValidationError, UnexpectedArgumentException } from './exceptions'
 import { getNegatedFlag, TokenParser } from './tokens/token-parser'
 
 export type ArgumentValue = any
@@ -42,6 +42,7 @@ export type ParsedInput = {
 
 export type CliCommandOptions = {
   inheritOpts?: boolean,
+  consumeUnknownArgs?: boolean
   consumeUnknownOpts?: boolean
 }
 
@@ -80,6 +81,7 @@ export class CliCommand {
   private handlerContext?: any
   private helpHandler: (command: CommandDefinition) => void
   private inheritOpts?: boolean
+  private consumeUnknownArgs?: boolean
   private consumeUnknownOpts?: boolean
   private args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
   private opts: { [name: string]: Option } = {}
@@ -96,7 +98,8 @@ export class CliCommand {
 
   constructor(name: string, opts: CliCommandOptions = {
     inheritOpts: false,
-    consumeUnknownOpts: false
+    consumeUnknownArgs: true,
+    consumeUnknownOpts: false,
   }) {
     if (!TokenParser.isValidName(name)) {
       throw new InvalidCommandNameException(name)
@@ -104,6 +107,7 @@ export class CliCommand {
 
     this.name = name
     this.inheritOpts = opts.inheritOpts
+    this.consumeUnknownArgs = opts.consumeUnknownArgs
     this.consumeUnknownOpts = opts.consumeUnknownOpts
 
     /* istanbul ignore next */
@@ -272,7 +276,11 @@ export class CliCommand {
       } else if (!this.isEmpty(this.subCommands)) {
         throw new UnknownSubcommandException(next, this.dump())
       } else {
-        this.parsed.extra.push(next)
+        if (this.consumeUnknownArgs) {
+          this.parsed.extra.push(next)
+        } else {
+          throw new UnexpectedArgumentException(next, this.dump())
+        }
         q.shift()
       }
     }

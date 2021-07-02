@@ -2,7 +2,7 @@ import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { spy, stub } from 'sinon'
 import { Argument, CliCommand, OnProcessHook, Option, Validator } from './cli-command'
-import { CillyException, DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, ExpectedButGotException, UnknownOptionException, UnknownSubcommandException, ValidationError } from './exceptions'
+import { CillyException, DuplicateArgumentException, DuplicateCommandNameException, DuplicateOptionException, InvalidArgumentNameException, InvalidCommandNameException, InvalidLongOptionNameException, InvalidNumOptionNamesException, InvalidShortOptionNameException, NoArgsAndSubCommandsException, NoCommandHandlerException, ExpectedButGotException, UnknownOptionException, UnknownSubcommandException, ValidationError, UnexpectedArgumentException } from './exceptions'
 
 chai.use(chaiAsPromised)
 
@@ -298,8 +298,8 @@ describe('CliCommand', () => {
       }
       expect(throwing).to.throw(UnknownOptionException)
     })
-    it('should put all extra arguments into extra', () => {
-      const cmd = new CliCommand('test')
+    it('should put all extra arguments into extra if consumeUnknownArgs is true', () => {
+      const cmd = new CliCommand('test', { consumeUnknownArgs: true })
         .withArguments({ name: 'arg' })
 
       const parsed = cmd.parse(['test', 'hello', 'this', 'should', 'go', 'into', 'extra'], { raw: true })
@@ -312,6 +312,12 @@ describe('CliCommand', () => {
         },
         extra: ['this', 'should', 'go', 'into', 'extra']
       })
+    })
+    it('should throw UnexpectedArgumentException if consumeUnknownArgs is false and unexpected argument is received', () => {
+      const cmd = new CliCommand('test', { consumeUnknownArgs: false })
+        .withArguments({ name: 'arg' })
+
+      expect(() => cmd.parse(['test', 'hello', 'this', 'should', 'go', 'into', 'extra'], { raw: true })).to.throw(UnexpectedArgumentException)
     })
     it('should put all extra options into extra if opts.consumeUnknownOptions is true', () => {
       const cmd = new CliCommand('test', { consumeUnknownOpts: true })
@@ -328,8 +334,8 @@ describe('CliCommand', () => {
         extra: ['--go']
       })
     })
-    it('should put all extra options and arguments into extra if opts.consumeUnknownOptions is true', () => {
-      const cmd = new CliCommand('test', { consumeUnknownOpts: true })
+    it('should put all extra options and arguments into extra if opts.consumeUnknownOptions and opts.consumeUnknownArgs are true', () => {
+      const cmd = new CliCommand('test', { consumeUnknownOpts: true, consumeUnknownArgs: true })
         .withArguments({ name: 'arg' })
 
       const parsed = cmd.parse(['test', 'hello', 'this', 'should', '--go', 'into', 'extra'], { raw: true })

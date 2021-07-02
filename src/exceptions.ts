@@ -17,6 +17,12 @@ export class UnknownSubcommandException extends CillyException {
   }
 }
 
+export class UnexpectedArgumentException extends CillyException {
+  constructor(public arg: string, public command: CommandDefinition) {
+    super(`Command ${command.name} received an unexpected argument: ${arg}`)
+  }
+}
+
 export class InvalidNumOptionNamesException extends CillyException {
   constructor(public names: string[]) {
     super(`Options must be provided exactly two names (short and long), but got ${JSON.stringify(names)}`)
