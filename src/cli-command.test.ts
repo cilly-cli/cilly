@@ -618,6 +618,10 @@ describe('CliCommand', () => {
       const parent = new CliCommand('parent').withOptions({ name: ['-d', '--do-not-inherit'] }).withSubCommands(child)
       expect((child as any).opts).to.haveOwnProperty('name')
       expect((child as any).opts).to.not.haveOwnProperty('doNotInherit')
+
+      const childOptionLongNames = Object.values((child as any).opts).map((o: Option) => o.name[1])
+
+      expect(childOptionLongNames).to.not.contain('--do-not-inherit')
     })
     it('should let 3rd level subcommands have access to grandparent options', () => {
       const me = new CliCommand('me', { inheritOpts: true })
