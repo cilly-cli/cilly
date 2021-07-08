@@ -8,7 +8,6 @@ const SHORT_OPTION_NAME_SYNTAX = new RegExp(`(${DASHES(1)}${OPTION_NAME_SYNTAX.s
 const LONG_OPTION_NAME_SYNTAX = new RegExp(`(${DASHES(2)}${OPTION_NAME_SYNTAX.source})`)
 const REQUIRED_VALUE_SYNTAX = new RegExp(`(${WHITESPACE.source}<${VARIADIC_SYNTAX.source}?${OPTION_NAME_SYNTAX.source}>)`)
 const OPTIONAL_VALUE_SYNTAX = new RegExp(`(${WHITESPACE.source}\\[${VARIADIC_SYNTAX.source}?${OPTION_NAME_SYNTAX.source}\\])`)
-const OPTION_ASSIGNMENT = new RegExp(`(${OPTION_NAME_SYNTAX.source})`)
 const OPTION_SIGNATURE_SYNTAX = new RegExp(
   `^${SHORT_OPTION_NAME_SYNTAX.source},${WHITESPACE.source}${LONG_OPTION_NAME_SYNTAX.source}` +
   `(${REQUIRED_VALUE_SYNTAX.source}|${OPTIONAL_VALUE_SYNTAX.source})*$`)
@@ -53,7 +52,7 @@ const getLongOptionName = (signature: string): string => {
   return match[0].replace('--', '')
 }
 
-export const getNegatedFlag = (longFlag): string => {
+export const getNegatedFlag = (longFlag: string): string => {
   return `--no-${longFlag.replace('--', '')}`
 }
 

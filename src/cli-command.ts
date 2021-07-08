@@ -41,7 +41,8 @@ export type ParsedInput = {
 }
 
 export type CliCommandOptions = {
-  inheritOpts?: boolean,
+  inheritOpts?: boolean | { except: string[] }
+  except?: string[]
   consumeUnknownArgs?: boolean
   consumeUnknownOpts?: boolean
 }
@@ -80,7 +81,7 @@ export class CliCommand {
   private handler?: CommandHandler
   private handlerContext?: any
   private helpHandler: (command: CommandDefinition) => void
-  private inheritOpts?: boolean
+  private inheritOpts?: boolean | { except: string[] }
   private consumeUnknownArgs?: boolean
   private consumeUnknownOpts?: boolean
   private args: Argument[] = []  // Needs to be an array because we have to pick arguments in order
@@ -104,6 +105,8 @@ export class CliCommand {
     if (!TokenParser.isValidName(name)) {
       throw new InvalidCommandNameException(name)
     }
+
+    this.checkInheritOpts(opts.inheritOpts)
 
     this.name = name
     this.inheritOpts = opts.inheritOpts
@@ -159,7 +162,7 @@ export class CliCommand {
 
       for (const [, subCommand] of Object.entries(this.subCommands)) {
         if (subCommand.inheritOpts) {
-          this.shareOptionsWith(subCommand)
+          subCommand.inheritOptions(...Object.values(this.opts))
         }
       }
     }
@@ -167,11 +170,32 @@ export class CliCommand {
     return this
   }
 
+  public inheritOptions(...options: Option[]): void {
+    const optionsToInherit: Option[] = []
+
+    for (const option of options) {
+      if (this.shouldInheritOption(option)) {
+        optionsToInherit.push(option)
+      }
+    }
+
+    this.withOptions(...optionsToInherit)
+  }
+
+  private shouldInheritOption(option: Option): boolean {
+    const [, long] = option.name
+
+    if (long === '--help') return false  // Do not inherit help flags as these are set in the constructor
+    if (typeof this.inheritOpts !== 'object') return true  // Don't filter inherited options further if no except-list is defined
+
+    return !this.inheritOpts.except.includes(long)
+  }
+
   public withSubCommands(...commands: CliCommand[]): CliCommand {
     for (const command of commands) {
       this.checkSubCommand(command)
       if (command.inheritOpts) {
-        this.shareOptionsWith(command)
+        command.inheritOptions(...Object.values(this.opts))
       }
       this.subCommands[command.name] = command
     }
@@ -636,11 +660,13 @@ export class CliCommand {
     return splitArgs
   }
 
-  private shareOptionsWith(command: CliCommand): void {
-    const filterOptions = ['help']
-    const filteredOptions = Object.entries(this.opts)
-      .filter(([name, opt]) => !filterOptions.includes(name))
-      .map(([name, opt]) => opt)
-    command.withOptions(...filteredOptions)
+  private checkInheritOpts(inheritOpts?: boolean | { except: string[] }): void {
+    if (typeof inheritOpts !== 'object') return
+
+    for (const exceptedOptionName of inheritOpts.except) {
+      if (!TokenParser.isLongOptionName(exceptedOptionName)) {
+        throw new InvalidLongOptionNameException(exceptedOptionName)
+      }
+    }
   }
 }

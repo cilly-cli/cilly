@@ -11,6 +11,9 @@ describe('CliCommand', () => {
     const throwing = (): void => { new CliCommand('') }
     expect(throwing).to.throw(InvalidCommandNameException)
   })
+  it('should throw an exception if inheritOpts is set to except invalid long option names', () => {
+    expect(() => new CliCommand('child', { inheritOpts: { except: ['asd'] } })).to.throw(InvalidLongOptionNameException)
+  })
   describe('process()', () => {
     it('should invoke the appropriate (sub)command handler', async () => {
       const handler = spy(() => { null })
@@ -610,6 +613,12 @@ describe('CliCommand', () => {
     })
   })
   describe('withSubCommands()', () => {
+    it('should not inherit options identified in except-array when inheritOpts is true', () => {
+      const child = new CliCommand('child', { inheritOpts: { except: ['--do-not-inherit'] } }).withOptions({ name: ['-n', '--name'] })
+      const parent = new CliCommand('parent').withOptions({ name: ['-d', '--do-not-inherit'] }).withSubCommands(child)
+      expect((child as any).opts).to.haveOwnProperty('name')
+      expect((child as any).opts).to.not.haveOwnProperty('doNotInherit')
+    })
     it('should let 3rd level subcommands have access to grandparent options', () => {
       const me = new CliCommand('me', { inheritOpts: true })
         .withOptions({ name: ['-m', '--me'] })
