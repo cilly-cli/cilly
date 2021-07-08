@@ -304,6 +304,13 @@ opts: {
 }
 ```
 
+If desired, subcommands can choose to make exceptions to the options inherited.
+For example, if the subcommand `install` does not want to inherit the `--dry-run` and `--silent` options from its parent, these can be excepted through `inheritOpts`: 
+```typescript
+new CliCommand('install', { inheritOpts: { except: ['--dry-run', '--silent'] }})
+```
+The `except` array will filter all options with matching long-names when inheriting, and must consist of valid long option names.
+
 ## Arguments
 Arguments are provided to a command with the `withArguments()` chain method. 
 The `withArguments()` method takes a list of `Argument` type options: 
