@@ -586,6 +586,26 @@ new CliCommand('build')
    }})
 ```
 
+#### Call order of onProcess() hooks
+The `onProcess()` hooks are called strictly in the order they are assigned to a command, regardless of whether they are assigned on arguments or options.
+This is useful for handling inter-dependencies between `onProcess()` calls. For example: 
+
+```typescript
+await new CliCommand('call-order')
+   .withOptions({ name: ['-f', '--first'], onProcess: (value) => { console.log(`--first with value ${value}`) } })
+   .withArguments({ name: 'second', onProcess: (value) => { console.log(`second with value: ${value}`) } })
+   .withOptions({ name: ['-t', '--third'], onProcess: (value) => { console.log(`--third with value ${value}`) } })
+   .withHandler(() => { })
+```
+
+```bash
+ $ call-order "This should be second" --first
+
+   --first with value true
+   second with value This should be second
+   --third with value undefined
+```
+
 ## Generating documentation
 The `CliCommand.dump()` method dumps the entire command (and its subcommands) to an easily readable object of type `CommandDefinition`. This is useful for generating documentation.
 
