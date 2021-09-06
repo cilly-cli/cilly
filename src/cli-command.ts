@@ -91,6 +91,9 @@ export class CliCommand {
   private argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
   private negatableOptsMap: { [name: string]: Option } = {}  // Maps --no-* flags to negatable options
 
+  // Maintain option/argument assignment order to call onProcess() hooks in the order they were defined
+  private onProcessQueue: (Option | Argument)[] = []
+
   private parsed: {
     args: ParsedArguments
     opts: ParsedOptions
@@ -136,11 +139,14 @@ export class CliCommand {
   public withArguments(...args: Argument[]): CliCommand {
     for (const arg of args) {
       this.checkArgument(arg)
+
       if (this.args.some(a => a.name == arg.name)) {
         throw new DuplicateArgumentException(arg.name, this.dump())
       }
+
       this.args.push(arg)
       this.argsMap[this.getName(arg)] = arg
+      this.onProcessQueue.push(arg)
     }
 
     return this
@@ -148,6 +154,7 @@ export class CliCommand {
 
   public withOptions(...options: Option[]): CliCommand {
     for (const option of options) {
+
       this.checkOption(option)
       const name = this.getName(option)
       const short = this.getShortName(option)
@@ -159,6 +166,8 @@ export class CliCommand {
 
       this.opts[name] = option
       this.shortNameMap[short] = name
+
+      this.onProcessQueue.push(option)
 
       for (const [, subCommand] of Object.entries(this.subCommands)) {
         if (subCommand.inheritOpts) {
@@ -324,8 +333,7 @@ export class CliCommand {
     const command = this.getCommand(opts.raw ? processArgs : processArgs.slice(2))
 
     // Run hooks
-    await command.runOnProcessHooks(parsed, 'args', command.argsMap)
-    await command.runOnProcessHooks(parsed, 'opts', command.opts)
+    await command.runOnProcessHooks(command.onProcessQueue, parsed)
 
     // Run validators
     await command.runValidators(parsed, 'args', command.argsMap)
@@ -371,18 +379,19 @@ export class CliCommand {
     }
   }
 
-  private async runOnProcessHooks(parsed: ParsedInput, type: 'args' | 'opts', definitions: { [name: string]: Option | Argument }): Promise<void> {
-    for (const [name, definition] of Object.entries(definitions)) {
+  private async runOnProcessHooks(definitions: (Option | Argument)[], parsed: ParsedInput): Promise<void> {
+    for (const definition of definitions) {
+
+      const name = this.getName(definition)
+      const type = typeof definition.name === 'string' ? 'args' : 'opts'  // If the name is a string, it's an arg (opt names are [short string, long string] arrays)
+      const value = parsed[type][name]
+
+      const assign = async (value: any): Promise<void> => {
+        await this.validate(value, parsed, definition)
+        parsed[type][name] = value
+      }
+
       if (definition.onProcess) {
-        const value = parsed[type][name]
-
-        // Let the hook call a function to assign a new value
-        // ensuring that the value is validated
-        const assign = async (value: any): Promise<void> => {
-          await this.validate(value, parsed, definition)
-          parsed[type][name] = value
-        }
-
         await definition.onProcess(value, parsed, assign)
       }
     }

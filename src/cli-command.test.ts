@@ -15,6 +15,57 @@ describe('CliCommand', () => {
     expect(() => new CliCommand('child', { inheritOpts: { except: ['asd'] } })).to.throw(InvalidLongOptionNameException)
   })
   describe('process()', () => {
+    it('should invoke the onProcess() hooks in order of argument/option assignment', async () => {
+      const callOrder: string[] = []
+
+      const firstHook = spy(() => { callOrder.push('first') })
+      const secondHook = spy(() => { callOrder.push('second') })
+      const thirdHook = spy(() => { callOrder.push('third') })
+      const fourthHook = spy(() => { callOrder.push('fourth') })
+
+      const cmd = new CliCommand('test')
+        .withOptions(
+          { name: ['-f', '--first'], onProcess: firstHook },
+          { name: ['-s', '--second'], onProcess: secondHook }
+        ).withArguments(
+          { name: 'third', onProcess: thirdHook }
+        ).withOptions(
+          { name: ['-fo', '--fourth'], onProcess: fourthHook }
+        ).withHandler(() => { return })
+
+      await cmd.process(['test'], { raw: true })
+
+      expect(callOrder).to.eql(['first', 'second', 'third', 'fourth'])
+    })
+    it('should invoke the onProcess() hooks in order of inherited arguments and options', async () => {
+      const callOrder: string[] = []
+
+      const firstHook = spy(() => { callOrder.push('first') })
+      const secondHook = spy(() => { callOrder.push('second') })
+      const thirdHook = spy(() => { callOrder.push('third') })
+      const fourthHook = spy(() => { callOrder.push('fourth') })
+      const fifthHook = spy(() => { callOrder.push('fifth') })
+
+      const child = new CliCommand('child', { inheritOpts: true })
+        .withArguments(
+          { name: 'first', onProcess: firstHook }
+        ).withOptions(
+          { name: ['-s', '--second'], onProcess: secondHook }
+        ).withHandler(() => { return })
+
+      const cmd = new CliCommand('test')
+        .withOptions(
+          { name: ['-t', '--third'], onProcess: thirdHook },
+          { name: ['-fo', '--fourth'], onProcess: fourthHook },
+        ).withOptions(
+          { name: ['-fi', '--fifth'], onProcess: fifthHook }
+        ).withHandler(() => { return })
+        .withSubCommands(child)
+
+      await cmd.process(['test', 'child'], { raw: true })
+
+      expect(callOrder).to.eql(['first', 'second', 'third', 'fourth', 'fifth'])
+    })
     it('should invoke the appropriate (sub)command handler', async () => {
       const handler = spy(() => { null })
       const otherHandler = spy(() => { null })
