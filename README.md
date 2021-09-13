@@ -641,6 +641,19 @@ type ArgumentDefinition = {
 When printing the `help` text, this is done completely from the `CommandDefinition` objects. 
 While out of scope for this specific package, one could dream of a package that could take a `CommandDefinition` object and generate a nice looking documentation page :eyes:
 
+Arbitrary data can be appended to dumped command objects using the `.withExtra()` method, e.g.: 
+
+```typescript
+new CliCommand('build')
+   .withExtra({
+      documentationSections: [
+         { type: 'title', content: 'Running the build command' },
+         { type: 'body', content: 'When running the build command, ...' },
+         ...
+      ]
+   })
+```
+
 Here's an example of a command dump:
 
 ```typescript
