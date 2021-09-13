@@ -736,10 +736,12 @@ describe('CliCommand', () => {
       const parent = new CliCommand('get')
         .withDescription('This is a get')
         .withOptions({ name: ['-f', '--files'], args: [{ name: 'files', variadic: true }] })
+        .withExtra({ documentation: 'lorem ipsum' })
         .withSubCommands(
           new CliCommand('download', { inheritOpts: true })
             .withOptions({ name: ['-d', '--dry-run'], required: false, defaultValue: true })
             .withArguments({ name: 'path', required: true })
+            .withExtra({ documentation: 'sit amet' })
         )
 
       expect(parent.dump()).to.eql({
@@ -747,6 +749,7 @@ describe('CliCommand', () => {
         version: undefined,
         description: 'This is a get',
         args: [],
+        extra: { documentation: 'lorem ipsum' },
         opts: [
           {
             name: ['-h', '--help'],
@@ -778,6 +781,7 @@ describe('CliCommand', () => {
             name: 'download',
             version: undefined,
             description: undefined,
+            extra: { documentation: 'sit amet' },
             args: [
               {
                 name: 'path',
@@ -887,6 +891,17 @@ describe('CliCommand', () => {
         .withOptions({ name: ['-t', '--test'] })
 
       expect((child as any).opts['test']).to.exist
+    })
+  })
+  describe('withExtra()', () => {
+    it('should append the extra information to the dumped command', () => {
+      const extra = { some: 'field' }
+      const dumped = new CliCommand('test')
+        .withExtra(extra)
+        .dump()
+
+      expect(dumped.extra).to.exist
+      expect(dumped.extra).to.eql(extra)
     })
   })
   describe('help()', () => {

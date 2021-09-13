@@ -70,7 +70,8 @@ export type CommandDefinition = {
   description?: string,
   opts: OptionDefinition[],
   args: ArgumentDefinition[],
-  subCommands: CommandDefinition[]
+  subCommands: CommandDefinition[],
+  extra?: any  // Arbitrary data to append to a dumped command (e.g. documentation)
 }
 export class CliCommand {
 
@@ -90,6 +91,8 @@ export class CliCommand {
   private shortNameMap: { [shortName: string]: string } = {}
   private argsMap: { [name: string]: Argument } = {}  // So we can match parsed args to their definitions
   private negatableOptsMap: { [name: string]: Option } = {}  // Maps --no-* flags to negatable options
+
+  private extra: any = undefined  // Arbitrary data (e.g. documentation) to append to a dumped command
 
   // Maintain option/argument assignment order to call onProcess() hooks in the order they were defined
   private onProcessQueue: (Option | Argument)[] = []
@@ -259,6 +262,11 @@ export class CliCommand {
     return this
   }
 
+  public withExtra(extra: any): CliCommand {
+    this.extra = extra
+    return this
+  }
+
   public dump(dumped: CliCommand[] = []): CommandDefinition {
     return {
       name: this.name,
@@ -266,6 +274,7 @@ export class CliCommand {
       description: this.description,
       opts: Object.values(this.opts).map(o => this.dumpOption(o)),
       args: Object.values(this.argsMap).map(a => this.dumpArgument(a)),
+      extra: this.extra,
       subCommands: dumped.includes(this)
         ? []  // Prevent endless recursion
         : Object.values(this.subCommands).map(c => c.dump(dumped.concat(this)))
