@@ -4,18 +4,18 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Launch demo.ts",
+      "name": "Debug app.ts",
       "smartStep": true,
-      "program": "${workspaceFolder}/src/demo.ts",
+      "program": "${workspaceFolder}/src/app.ts",
       "preLaunchTask": "tsc: build - tsconfig.json",
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "autoAttachChildProcesses": true,
-      "args": ["todd", "--help"]
+      "args": []
     },
     {
       "type": "node",
       "request": "launch",
-      "name": "Mocha Tests",
+      "name": "Debug specifications",
       "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
       "args": [
           "-r",
@@ -23,7 +23,7 @@
           "--timeout",
           "999999",
           "--colors",
-          "${workspaceFolder}/src/**/*.test.ts",
+          "${workspaceFolder}/src/**/*.spec.ts",
       ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",

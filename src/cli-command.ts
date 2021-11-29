@@ -509,9 +509,11 @@ export class CliCommand {
       if (arg.variadic) {
         argValue = this.consumeVariadicArguments(q)
       } else {
-        argValue = q.shift()
+        argValue = this.consumeSingleArgument(q)
       }
-    } else {
+    }
+
+    if (argValue === undefined) {
       if (arg.variadic) {
         argValue = []
       } else if (arg.required) {
@@ -544,6 +546,14 @@ export class CliCommand {
     }
 
     return args
+  }
+
+  private consumeSingleArgument(q: string[]): string | undefined {
+    if (q[0] && TokenParser.isOptionName(q[0])) {
+      return undefined
+    }
+
+    return q.shift()
   }
 
   /**

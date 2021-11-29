@@ -212,6 +212,14 @@ describe('CliCommand', () => {
     })
   })
   describe('parse()', () => {
+    it('should assign true default values to boolean options', () => {
+      const { opts } = new CliCommand('test').withOptions({ name: ['-t', '--test'], defaultValue: true }).parse(['test'], { raw: true })
+      expect(opts.test).to.be.true
+    })
+    it('should assign false default values to boolean options', () => {
+      const { opts } = new CliCommand('test').withOptions({ name: ['-t', '--test'], defaultValue: false }).parse(['test'], { raw: true })
+      expect(opts.test).to.be.false
+    })
     it('should call the correct help handler when parsing --help in subcommands', () => {
       const firstHelp = spy()
       const secondHelp = spy()
@@ -473,7 +481,7 @@ describe('CliCommand', () => {
       expect(opts.file).to.exist
       expect(opts.file).to.equal('test.txt')
     })
-    it('should not assign default value to options with arguments when the option is passed', () => {
+    it('should assign default value to options with arguments when the option is passed', () => {
       const cli = new CliCommand('test')
         .withOptions({ name: ['-f', '--file'], args: [{ name: 'file' }], defaultValue: 'file.txt' })
       const { opts } = cli.parse(['test'], { raw: true })
@@ -493,6 +501,21 @@ describe('CliCommand', () => {
       const { opts } = cli.parse(['test'], { raw: true })
       expect(opts.files).to.exist
       expect(opts.files).to.eql(['file.txt'])
+    })
+    it('should not try to parse options as option-argument values when a default value is present', () => {
+      const cli = new CliCommand('test')
+        .withOptions(
+          {
+            name: ['-f', '--first'],
+            args: [{ name: 'first-arg', defaultValue: true, required: false }]
+          },
+          {
+            name: ['-s', '--second'],
+          }
+        )
+
+      const { opts } = cli.parse(['test', '--first', '--second'], { raw: true })
+      expect(opts.first).to.equal(true)
     })
   })
 
