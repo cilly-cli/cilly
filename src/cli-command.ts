@@ -149,9 +149,12 @@ export class CliCommand {
 
       const argName = this.getName(arg)
 
+      if (!(argName in this.argsMap)) {
+        this.onProcessQueue.push(arg)
+      }
+
       this.args.push(arg)
       this.argsMap[argName] = arg
-      this.onProcessQueue.push(arg)
     }
 
     return this
@@ -169,9 +172,12 @@ export class CliCommand {
         this.negatableOptsMap[negatedFlag] = option
       }
 
+      if (!(name in this.opts)) {
+        this.onProcessQueue.push(option)
+      }
+
       this.opts[name] = option
       this.shortNameMap[short] = name
-      this.onProcessQueue.push(option)
 
       for (const [, subCommand] of Object.entries(this.subCommands)) {
         if (subCommand.inheritOpts) {

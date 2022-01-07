@@ -20,15 +20,22 @@ describe('CliCommand', () => {
   it('should not duplicate options in inheriting subcommands', async () => {
     const onProcess = stub()
     const opt: Option = { name: ['-a', '--as'], onProcess: onProcess }
+
     const second = new CliCommand('second', { inheritOpts: true })
       .withHandler(() => { null })
-    const first = new CliCommand('first')
-      .withOptions(opt)
+
+    const first = new CliCommand('first', { inheritOpts: true })
       .withSubCommands(second)
+      .withOptions(opt)
       .withHandler(() => { null })
 
-    await expect(first.process(['first', 'second', '--as'], { raw: true })).to.not.be.rejected
-    expect(onProcess.calledTwice).to.be.false
+    const zeroth = new CliCommand('zero')
+      .withOptions({ name: ['-b', '--ba'] })
+      .withSubCommands(first)
+      .withHandler(() => { null })
+
+    await expect(zeroth.process(['zero', 'first', 'second'], { raw: true })).to.not.be.rejected
+    expect(onProcess.calledOnce).to.be.true
   })
   it('should throw an exception with an invalid command name', () => {
     const throwing = (): void => { new CliCommand('') }
