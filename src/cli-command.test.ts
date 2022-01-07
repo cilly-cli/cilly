@@ -7,6 +7,29 @@ import { CillyException, DuplicateArgumentException, DuplicateCommandNameExcepti
 chai.use(chaiAsPromised)
 
 describe('CliCommand', () => {
+  it('should not prevent users from registering subcommands before options', () => {
+    expect(() => {
+      new CliCommand('first')
+        .withSubCommands(new CliCommand('second'))
+        .withOptions({
+          name: ['-a', '--as'],
+          args: [{ name: 'arg' }]
+        })
+    }).to.not.throw()
+  })
+  it('should not duplicate options in inheriting subcommands', async () => {
+    const onProcess = stub()
+    const opt: Option = { name: ['-a', '--as'], onProcess: onProcess }
+    const second = new CliCommand('second', { inheritOpts: true })
+      .withHandler(() => { null })
+    const first = new CliCommand('first')
+      .withOptions(opt)
+      .withSubCommands(second)
+      .withHandler(() => { null })
+
+    await expect(first.process(['first', 'second', '--as'], { raw: true })).to.not.be.rejected
+    expect(onProcess.calledTwice).to.be.false
+  })
   it('should throw an exception with an invalid command name', () => {
     const throwing = (): void => { new CliCommand('') }
     expect(throwing).to.throw(InvalidCommandNameException)
@@ -516,6 +539,21 @@ describe('CliCommand', () => {
 
       const { opts } = cli.parse(['test', '--first', '--second'], { raw: true })
       expect(opts.first).to.equal(true)
+    })
+    it('should not try to parse arguments for a negatable option with arguments', () => {
+      const cli = new CliCommand('test')
+        .withOptions(
+          {
+            name: ['-f', '--first'],
+            negatable: true,
+            args: [
+              { name: 'arg' }
+            ]
+          }
+        )
+
+      const { opts } = cli.parse(['test', '--no-first', 'argValue'], { raw: true })
+      expect(opts.first).to.be.false
     })
   })
 

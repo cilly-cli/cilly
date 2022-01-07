@@ -147,8 +147,10 @@ export class CliCommand {
         throw new DuplicateArgumentException(arg.name, this.dump())
       }
 
+      const argName = this.getName(arg)
+
       this.args.push(arg)
-      this.argsMap[this.getName(arg)] = arg
+      this.argsMap[argName] = arg
       this.onProcessQueue.push(arg)
     }
 
@@ -169,7 +171,6 @@ export class CliCommand {
 
       this.opts[name] = option
       this.shortNameMap[short] = name
-
       this.onProcessQueue.push(option)
 
       for (const [, subCommand] of Object.entries(this.subCommands)) {
@@ -599,12 +600,12 @@ export class CliCommand {
     }
 
     for (const arg of option.args ?? []) {
-      this.checkArgument(arg)
+      this.checkArgument(arg, { isOptionArg: true })
     }
   }
 
-  private checkArgument(arg: Argument): void {
-    if (!this.isEmpty(this.subCommands)) {
+  private checkArgument(arg: Argument, opts?: { isOptionArg: boolean }): void {
+    if (!opts?.isOptionArg && !this.isEmpty(this.subCommands)) {
       throw new NoArgsAndSubCommandsException(this.dump())
     }
 

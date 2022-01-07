@@ -8,7 +8,9 @@
       "smartStep": true,
       "program": "${workspaceFolder}/src/app.ts",
       "preLaunchTask": "tsc: build - tsconfig.json",
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "outFiles": [
+        "${workspaceFolder}/dist/**/*.js"
+      ],
       "autoAttachChildProcesses": true,
       "args": []
     },
@@ -18,16 +20,16 @@
       "name": "Debug specifications",
       "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
       "args": [
-          "-r",
-          "ts-node/register",
-          "--timeout",
-          "999999",
-          "--colors",
-          "${workspaceFolder}/src/**/*.spec.ts",
+        "-r",
+        "ts-node/register",
+        "--timeout",
+        "999999",
+        "--colors",
+        "${workspaceFolder}/src/**/*.test.ts",
       ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       "protocol": "inspector"
-  }
+    }
   ]
 }
