@@ -8,7 +8,7 @@ export class CillyException extends Error {
 
 export class UnknownOptionException extends CillyException {
   constructor(public option: string, public command: CommandDefinition) {
-    super(`Unkown option name: ${option}`)
+    super(`Unknown option name: ${option}`)
   }
 }
 export class UnknownSubcommandException extends CillyException {
