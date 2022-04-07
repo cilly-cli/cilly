@@ -29,6 +29,7 @@ export type Option = {
   args?: Argument[],
   defaultValue?: OptionValue,
   description?: string,
+  inherited?: boolean
   onParse?: OnParseHook,
   onProcess?: OnProcessHook,
   validator?: Validator
@@ -161,6 +162,9 @@ export class CliCommand {
   }
 
   public withOptions(...options: Option[]): CliCommand {
+    const localOptions: Option[] = []
+    const inheritedOptions: Option[] = []
+
     for (const option of options) {
 
       this.checkOption(option)
@@ -173,7 +177,11 @@ export class CliCommand {
       }
 
       if (!(name in this.opts)) {
-        this.onProcessQueue.push(option)
+        if (option.inherited) {
+          inheritedOptions.push(option)
+        } else {
+          localOptions.push(option)
+        }
       }
 
       this.opts[name] = option
@@ -186,6 +194,10 @@ export class CliCommand {
       }
     }
 
+    // Inherited options should be processed before other options
+    this.onProcessQueue.unshift(...inheritedOptions)
+    this.onProcessQueue.push(...localOptions)
+
     return this
   }
 
@@ -194,7 +206,10 @@ export class CliCommand {
 
     for (const option of options) {
       if (this.shouldInheritOption(option)) {
-        optionsToInherit.push(option)
+        optionsToInherit.push({
+          ...option,
+          inherited: true
+        })
       }
     }
 

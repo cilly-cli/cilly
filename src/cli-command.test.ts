@@ -67,7 +67,33 @@ describe('CliCommand', () => {
 
       expect(callOrder).to.eql(['first', 'second', 'third', 'fourth'])
     })
-    it('should invoke the onProcess() hooks in order of inherited arguments and options', async () => {
+    it('should invoke the onProcess() hooks in order to option inheritance', async () => {
+      const callOrder: string[] = []
+
+      const firstHook = spy(() => { callOrder.push('first') })
+      const secondHook = spy(() => { callOrder.push('second') })
+      const thirdHook = spy(() => { callOrder.push('third') })
+      const fourthHook = spy(() => { callOrder.push('fourth') })
+
+      const child = new CliCommand('child', { inheritOpts: true })
+        .withOptions(
+          { name: ['-t', '--third'], onProcess: thirdHook },
+          { name: ['-f', '--fourth'], onProcess: fourthHook }
+        )
+        .withHandler(() => { null })
+
+      const parent = new CliCommand('parent')
+        .withOptions(
+          { name: ['-f', '--first'], onProcess: firstHook },
+          { name: ['-s', '--second'], onProcess: secondHook }
+        )
+        .withSubCommands(child)
+        .withHandler(() => { null })
+
+      await parent.process(['parent', 'child'], { raw: true })
+      expect(callOrder).to.eql(['first', 'second', 'third', 'fourth'])
+    })
+    it('should invoke the onProcess() hooks in order to option/argument inheritance', async () => {
       const callOrder: string[] = []
 
       const firstHook = spy(() => { callOrder.push('first') })
@@ -77,23 +103,24 @@ describe('CliCommand', () => {
       const fifthHook = spy(() => { callOrder.push('fifth') })
 
       const child = new CliCommand('child', { inheritOpts: true })
-        .withArguments(
-          { name: 'first', onProcess: firstHook }
-        ).withOptions(
-          { name: ['-s', '--second'], onProcess: secondHook }
-        ).withHandler(() => { return })
-
-      const cmd = new CliCommand('test')
         .withOptions(
           { name: ['-t', '--third'], onProcess: thirdHook },
-          { name: ['-fo', '--fourth'], onProcess: fourthHook },
-        ).withOptions(
-          { name: ['-fi', '--fifth'], onProcess: fifthHook }
-        ).withHandler(() => { return })
+          { name: ['-fo', '--fourth'], onProcess: fourthHook }
+        )
+        .withArguments(
+          { name: 'fifth', onProcess: fifthHook }
+        )
+        .withHandler(() => { null })
+
+      const parent = new CliCommand('parent')
+        .withOptions(
+          { name: ['-f', '--first'], onProcess: firstHook },
+          { name: ['-s', '--second'], onProcess: secondHook }
+        )
         .withSubCommands(child)
+        .withHandler(() => { null })
 
-      await cmd.process(['test', 'child'], { raw: true })
-
+      await parent.process(['parent', 'child', 'fifth'], { raw: true })
       expect(callOrder).to.eql(['first', 'second', 'third', 'fourth', 'fifth'])
     })
     it('should invoke the appropriate (sub)command handler', async () => {
